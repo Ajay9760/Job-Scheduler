@@ -1,0 +1,269 @@
+:root {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  min-height: 100vh;
+  padding: 16px 24px 32px;
+  background: radial-gradient(circle at top left, #dbeafe, #f3f4f6);
+}
+
+.app--centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.muted {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.topbar-right {
+  display: flex;
+  gap: 8px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px 18px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.card--auth {
+  max-width: 380px;
+  width: 100%;
+}
+
+.card-title {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.input {
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 7px 10px;
+  font-size: 0.9rem;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+.btn {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn--primary {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: white;
+}
+
+.btn--ghost {
+  background: white;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.btn--danger {
+  background: #ef4444;
+  color: white;
+}
+
+.btn--full {
+  width: 100%;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cards-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.card--stat {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #0f172a, #1f2937);
+  color: white;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+.stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.table-wrapper {
+  overflow: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.table th,
+.table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.cell-url {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  color: white;
+  font-weight: 500;
+}
+
+.pill--method {
+  background: #0ea5e9;
+}
+
+.pill--status {
+  background: #6b7280;
+}
+
+.pill--priority {
+  background: #111827;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  width: 420px;
+  max-width: 95vw;
+  background: white;
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 0.85rem;
+}
+
+.toast {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+
+.toast--error {
+  background: #fee2e2;
+  color: #b91c1c;
+}

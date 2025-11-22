@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="1" author="system">
+        <createTable tableName="users">
+            <column name="id" type="SERIAL" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="username" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="password_hash" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="roles" type="VARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+        </createTable>
+
+        <createTable tableName="jobs">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="external_id" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="target_url" type="TEXT" />
+            <column name="http_method" type="VARCHAR(10)" defaultValue="GET">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_body" type="TEXT"/>
+            <column name="cron_expression" type="VARCHAR(100)" />
+            <column name="status" type="VARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="priority" type="INTEGER" defaultValue="5">
+                <constraints nullable="false"/>
+            </column>
+            <column name="timeout_seconds" type="INTEGER" defaultValue="30">
+                <constraints nullable="false"/>
+            </column>
+            <column name="max_retries" type="INTEGER" defaultValue="3">
+                <constraints nullable="false"/>
+            </column>
+            <column name="retry_count" type="INTEGER" defaultValue="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="backoff_seconds" type="INTEGER" defaultValue="60">
+                <constraints nullable="false"/>
+            </column>
+            <column name="webhook_url" type="TEXT"/>
+            <column name="next_run_at" type="TIMESTAMP"/>
+            <column name="last_run_at" type="TIMESTAMP"/>
+            <column name="last_error" type="TEXT"/>
+            <column name="created_by" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="api_keys">
+            <column name="id" type="SERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="key_value" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="owner" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="expires_at" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="jobs" indexName="idx_jobs_status">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex tableName="jobs" indexName="idx_jobs_priority">
+            <column name="priority"/>
+        </createIndex>
+
+        <!-- Insert default admin user -->
+        <sql>
+            INSERT INTO users (username, password_hash, roles, created_at, updated_at)
+            VALUES ('admin', '$2a$10$YQIHqWf1/nDRqO6.YT4qKu9jk8sYl0x7uhGV3reNtljrEMkZ18V4K', 'ADMIN,USER', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (username) DO NOTHING;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>
