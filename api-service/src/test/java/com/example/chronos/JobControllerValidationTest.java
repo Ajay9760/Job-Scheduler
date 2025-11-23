@@ -2,58 +2,66 @@ package com.example.chronos;
 
 import com.example.chronos.config.TestSecurityConfig;
 import com.example.chronos.controller.JobController;
+import com.example.chronos.dto.job.JobCreateRequest;
 import com.example.chronos.service.JobService;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import com.example.chronos.repository.UserRepository; // ✅ Import 1
+import com.example.chronos.security.JwtTokenUtil;   // ✅ Import 2
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.userdetails.UserDetailsService; // ✅ Import 3
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-
 @WebMvcTest(JobController.class)
-@AutoConfigureMockMvc(addFilters = false)
 @Import(TestSecurityConfig.class)
-public class JobControllerValidationTest {
+@ActiveProfiles("test")
+class JobControllerValidationTest {
 
     @Autowired
-    MockMvc mockMvc;
+    private MockMvc mockMvc;
 
-    @NotBlank(message = "Name is required")
-    private String name;
-
-    @NotBlank(message = "Target URL is required")
-    private String targetUrl;
-
-    @NotNull(message = "HTTP method is required")
-    private HttpMethod httpMethod;
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @MockBean
-    JobService jobService;
+    private JobService jobService;
+
+    // --- PASTE THESE 3 MOCKS HERE TOO ---
+    // Since JobControllerValidationTest loads the same Controller/Security layers,
+    // it faces the exact same "Missing Bean" error if these are not mocked.
+
+    @MockBean
+    private JwtTokenUtil jwtTokenUtil;
+
+    @MockBean
+    private UserRepository userRepository;
+
+    @MockBean
+    private UserDetailsService userDetailsService;
+
+    // ------------------------------------
 
     @Test
+    @WithMockUser
     void createJob_returns400WhenInvalidBody() throws Exception {
-        String body = """
-            {
-              "name": "",
-              "targetUrl": "",
-              "httpMethod": null
-            }
-            """;
+        // Given an empty request (invalid because @NotNull fields are missing)
+        JobCreateRequest request = new JobCreateRequest();
 
+        // When/Then
         mockMvc.perform(post("/api/jobs")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body)
-                        .header("X-User-Id", "ajay"))
+                        .content(objectMapper.writeValueAsString(request))
+                        .with(csrf())) // CSRF is required for POST/PUT/DELETE
                 .andExpect(status().isBadRequest());
     }
 }

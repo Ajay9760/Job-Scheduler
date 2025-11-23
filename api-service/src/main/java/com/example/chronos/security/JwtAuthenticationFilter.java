@@ -10,12 +10,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+@Component  // CRITICAL: This was missing!
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenUtil jwtTokenUtil;
@@ -30,23 +32,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
+
+        // CRITICAL FIX: Skip JWT validation for public endpoints
+        String requestPath = request.getRequestURI();
+        if (requestPath.startsWith("/api/auth/") ||
+                requestPath.startsWith("/actuator/") ||
+                requestPath.startsWith("/error") ||
+                requestPath.startsWith("/h2-console/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
                 String username = jwtTokenUtil.extractUsername(token);
-                User user = userRepository.findByUsername(username).orElse(null);
-                if (user != null) {
-                    var authorities = Arrays.stream(user.getRoles().split(","))
-                            .map(String::trim)
-                            .filter(r -> !r.isEmpty())
-                            .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
-                            .collect(Collectors.toList());
-                    var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(auth);
+
+                // Validate token before proceeding
+                if (username != null && jwtTokenUtil.validateToken(token)) {
+                    User user = userRepository.findByUsername(username).orElse(null);
+
+                    if (user != null) {
+                        var authorities = Arrays.stream(user.getRoles().split(","))
+                                .map(String::trim)
+                                .filter(r -> !r.isEmpty())
+                                .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
+                                .collect(Collectors.toList());
+
+                        var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+                        SecurityContextHolder.getContext().setAuthentication(auth);
+                    }
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                // Log the exception for debugging
+                System.err.println("JWT Authentication error: " + e.getMessage());
+                // Clear any partial authentication
+                SecurityContextHolder.clearContext();
+            }
         }
+
         filterChain.doFilter(request, response);
     }
 }
