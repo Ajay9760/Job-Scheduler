@@ -1,3 +1,4 @@
 # Project exclude paths
 /api-service/target/
 /scheduler-service/target/
+/target/
