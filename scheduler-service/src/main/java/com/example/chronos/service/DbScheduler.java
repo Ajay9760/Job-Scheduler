@@ -4,6 +4,7 @@ import com.example.chronos.domain.Job;
 import com.example.chronos.domain.enums.JobStatus;
 import com.example.chronos.repository.JobRepository;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 
 @Service
+@Profile("!test")
 public class DbScheduler {
 
     private static final String LOCK_KEY = "chronos:scheduler:lock";

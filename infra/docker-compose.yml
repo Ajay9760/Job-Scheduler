@@ -1,11 +1,11 @@
 version: '3.9'
 services:
   postgres:
-    image: postgres:15
+    image: postgres:13
     environment:
-      POSTGRES_DB: chronos
-      POSTGRES_USER: chronos
-      POSTGRES_PASSWORD: chronos
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
   rabbitmq:

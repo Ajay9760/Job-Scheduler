@@ -5,6 +5,7 @@ import com.example.chronos.domain.enums.JobStatus;
 import com.example.chronos.repository.JobRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -51,6 +52,12 @@ public class EnhancedJobWorker {
             return;
         }
 
+        try (MDC.MDCCloseable ignored = MDC.putCloseable
+                ("jobId", String.valueOf(jobId))) {
+        } catch (Exception e) {
+            log.error("Job {} failed: {}", jobId, e.getMessage());
+        }
+
         try {
             execute(job);
             circuitBreaker.onSuccess(key);
@@ -67,14 +74,20 @@ public class EnhancedJobWorker {
         HttpMethod method = HttpMethod.valueOf(job.getHttpMethod().name());
         int timeout = job.getTimeoutSeconds() > 0 ? job.getTimeoutSeconds() : 30;
 
-        var spec = webClient.method(method)
+        WebClient.RequestBodyUriSpec uriSpec = webClient.method(method);
+        WebClient.RequestBodySpec bodySpec = uriSpec
                 .uri(job.getTargetUrl())
                 .contentType(MediaType.APPLICATION_JSON);
+
+        WebClient.RequestHeadersSpec<?> requestSpec;
         if (job.getRequestBody() != null && !job.getRequestBody().isBlank()) {
-            spec = spec.bodyValue(job.getRequestBody());
+            requestSpec = bodySpec.bodyValue(job.getRequestBody());
+        } else {
+            requestSpec = bodySpec;
         }
 
-        String response = spec.retrieve()
+        String response = requestSpec
+                .retrieve()
                 .bodyToMono(String.class)
                 .timeout(Duration.ofSeconds(timeout))
                 .block();
@@ -88,4 +101,5 @@ public class EnhancedJobWorker {
         webhookService.notify(job, true, response);
         log.info("Job {} completed", job.getId());
     }
+
 }

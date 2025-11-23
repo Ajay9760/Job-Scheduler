@@ -1,14 +1,22 @@
 package com.example.chronos.dto.job;
 
 import com.example.chronos.domain.enums.HttpMethodType;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
+@Valid
 public class JobCreateRequest {
 
-    @NotBlank
+
+
+    @NotBlank(message = "Name is required")
     @Size(max = 255)
     private String name;
 
+    @Pattern(
+            regexp = "https?://.+",
+            message = "targetUrl must be a valid HTTP/HTTPS URL"
+    )
     @NotBlank
     @Size(max = 1000)
     private String targetUrl;

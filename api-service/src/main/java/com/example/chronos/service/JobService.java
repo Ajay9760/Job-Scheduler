@@ -12,6 +12,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.MalformedURLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -30,7 +31,32 @@ public class JobService {
         this.rabbitTemplate = rabbitTemplate;
     }
 
+
+
     @Transactional
+
+    public JobResponse getJobById(Long id, String owner) {
+        Job job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+        if (!owner.equals(job.getCreatedBy())) {
+            throw new ForbiddenException("Job does not belong to current user");
+        }
+        return jobMapper.toDto(job);
+    }
+    public void checkJobOwner(Job job, String owner) {
+     if (!job.getCreatedBy().equals(owner)) {
+        throw new ForbiddenException("You cannot access this job");
+    }
+    }
+
+    private void validateUrl(String url) {
+        try {
+            new java.net.URL(url);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("Invalid URL: " + url);
+        }
+    }
+
     public JobResponse create(JobCreateRequest request, String owner) {
         Job job = jobMapper.toEntity(request, owner);
         if (job.getNextRunAt() == null) {
