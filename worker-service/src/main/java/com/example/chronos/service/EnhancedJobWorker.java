@@ -11,6 +11,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.amqp.rabbit.annotation.Queue;
+
 
 import java.time.Duration;
 
@@ -34,7 +36,7 @@ public class EnhancedJobWorker {
         this.circuitBreaker = circuitBreaker;
     }
 
-    @RabbitListener(queues = "chronos.jobs.execute")
+    @RabbitListener(queuesToDeclare = @Queue("chronos.jobs.execute"))
     public void handle(Long jobId) {
         Job job = jobRepository.findById(jobId).orElse(null);
         if (job == null) {
