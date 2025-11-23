@@ -7,7 +7,7 @@ import jakarta.validation.constraints.*;
 @Valid
 public class JobCreateRequest {
 
-
+    private String headers;
 
     @NotBlank(message = "Name is required")
     @Size(max = 255)

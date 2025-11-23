@@ -82,6 +82,34 @@ public class JobService {
         }
         return jobMapper.toDto(job);
     }
+    @Transactional
+    public void pause(Long id, String owner) {
+        Job job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+
+        // Security Check
+        if (!owner.equals(job.getCreatedBy())) {
+            throw new ForbiddenException("Job does not belong to current user");
+        }
+
+        job.setStatus(JobStatus.PAUSED);
+        jobRepository.save(job);
+    }
+
+    @Transactional
+    public void resume(Long id, String owner) {
+        Job job = jobRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found"));
+
+        if (!owner.equals(job.getCreatedBy())) {
+            throw new ForbiddenException("Job does not belong to current user");
+        }
+
+        // Resume means setting it back to PENDING and scheduling it to run immediately or soon
+        job.setStatus(JobStatus.PENDING);
+        job.setNextRunAt(Instant.now()); // Will be picked up by the next poller cycle
+        jobRepository.save(job);
+    }
 
     @Transactional
     public JobResponse update(Long id, JobUpdateRequest request, String owner) {
