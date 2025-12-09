@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,6 +18,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -32,48 +38,89 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF (using lambda)
+                // Disable CSRF for stateless REST APIs
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // Disable CORS (using lambda)
-                .cors(AbstractHttpConfigurer::disable)
+                // ✅ ENABLE CORS
+                .cors(Customizer.withDefaults())
 
-                // Authorization rules - MOST SPECIFIC PATTERNS FIRST
+                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints - NO authentication required
-                        .requestMatchers("/api/auth/login").permitAll()
-                        .requestMatchers("/api/auth/register").permitAll()
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // Allow both /api/auth and /auth paths for backward compatibility
+                        .requestMatchers(
+                                "/auth/login",
+                                "/auth/register",
+                                "/auth/**",
+                                "/api/auth/login",
+                                "/api/auth/register",
+                                "/api/auth/**"
+                        ).permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers("/actuator/health/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/public/**").permitAll()
-
-                        // All other endpoints require authentication
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/api/analytics/**").permitAll()
                         .anyRequest().authenticated()
                 )
 
-                // Stateless session - no sessions stored
+                // Stateless JWT-based auth
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Disable default form login
+                // No form login / basic auth
                 .formLogin(AbstractHttpConfigurer::disable)
-
-                // Disable HTTP Basic
                 .httpBasic(AbstractHttpConfigurer::disable)
 
-                // Add JWT filter BEFORE Spring Security's authentication filter
+                // Add JWT filter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Allow frames for H2 console
+                // Allow H2 console in frame
                 .headers(headers ->
                         headers.frameOptions(frame -> frame.disable())
                 );
 
         return http.build();
+    }
+
+    // ✅ IMPROVED CORS configuration
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        // ✅ Allow your React dev server (consider using environment variable for production)
+        config.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000"  // Add if using different port
+        ));
+
+        // ✅ Allowed HTTP methods
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+
+        // ✅ FIXED: Explicitly list allowed headers instead of "*"
+        config.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "X-User-Id",
+                "Accept",
+                "Origin",
+                "X-Requested-With"
+        ));
+
+        // ✅ Expose Authorization header so frontend can read it
+        config.setExposedHeaders(List.of("Authorization"));
+
+        // ✅ Allow credentials (needed for cookies/auth headers)
+        config.setAllowCredentials(true);
+
+        // ✅ Cache preflight requests for 1 hour
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     @Bean

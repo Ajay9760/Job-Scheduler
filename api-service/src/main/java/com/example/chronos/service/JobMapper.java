@@ -1,6 +1,8 @@
 package com.example.chronos.service;
 
 import com.example.chronos.domain.Job;
+import com.example.chronos.domain.enums.HttpMethodType;
+import com.example.chronos.domain.enums.JobStatus;
 import com.example.chronos.dto.job.JobCreateRequest;
 import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.dto.job.JobUpdateRequest;
@@ -11,17 +13,18 @@ public class JobMapper {
 
     public Job toEntity(JobCreateRequest dto, String owner) {
         Job j = new Job();
-        j.setName(dto.getName());
+        j.setName(dto.getName()); // ✅ ADD THIS LINE - IT'S MISSING!
         j.setTargetUrl(dto.getTargetUrl());
-        j.setHttpMethod(dto.getHttpMethod());
+        j.setHttpMethod(HttpMethodType.valueOf(dto.getHttpMethod()));
         j.setRequestBody(dto.getRequestBody());
-        j.setPriority(dto.getPriority());
-        j.setTimeoutSeconds(dto.getTimeoutSeconds());
-        j.setMaxRetries(dto.getMaxRetries());
-        j.setBackoffSeconds(dto.getBackoffSeconds());
+        j.setPriority(dto.getPriority() != null ? dto.getPriority() : 5); // ✅ Add null check
+        j.setTimeoutSeconds(dto.getTimeoutSeconds() != null ? dto.getTimeoutSeconds() : 30); // ✅ Add null check
+        j.setMaxRetries(dto.getMaxRetries() != null ? dto.getMaxRetries() : 3); // ✅ Add null check
+        j.setBackoffSeconds(dto.getBackoffSeconds() != null ? dto.getBackoffSeconds() : 30); // ✅ Add null check
         j.setWebhookUrl(dto.getWebhookUrl());
         j.setCronExpression(dto.getCronExpression());
         j.setCreatedBy(owner);
+        j.setStatus(JobStatus.SCHEDULED);
         return j;
     }
 

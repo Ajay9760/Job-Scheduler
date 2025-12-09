@@ -20,11 +20,9 @@ import java.util.List;
 public class JobController {
 
     private final JobService jobService;
-    private final JobExecutionRepository jobExecutionRepository; // ✅ Added Field
 
-    public JobController(JobService jobService, JobExecutionRepository jobExecutionRepository) {
+    public JobController(JobService jobService) {
         this.jobService = jobService;
-        this.jobExecutionRepository = jobExecutionRepository;
     }
 
     /**

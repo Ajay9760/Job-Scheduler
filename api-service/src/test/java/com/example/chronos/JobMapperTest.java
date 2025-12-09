@@ -22,7 +22,7 @@ class JobMapperTest {
         JobCreateRequest req = new JobCreateRequest();
         req.setName("My Job");
         req.setTargetUrl("https://example.com");
-        req.setHttpMethod(HttpMethodType.POST);
+        req.setHttpMethod(String.valueOf(HttpMethodType.POST));
         req.setRequestBody("{\"ok\":true}");
         req.setPriority(5);
         req.setTimeoutSeconds(30);

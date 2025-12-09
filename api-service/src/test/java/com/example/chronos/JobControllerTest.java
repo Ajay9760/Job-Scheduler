@@ -2,12 +2,11 @@ package com.example.chronos;
 
 import com.example.chronos.config.TestSecurityConfig;
 import com.example.chronos.controller.JobController;
-import com.example.chronos.domain.enums.HttpMethodType;
 import com.example.chronos.dto.job.JobCreateRequest;
 import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.service.JobService;
-import com.example.chronos.repository.UserRepository; // <--- IMPORT THIS
-import com.example.chronos.security.JwtTokenUtil;   // <--- IMPORT THIS
+import com.example.chronos.repository.UserRepository;
+import com.example.chronos.security.JwtTokenUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,22 +40,14 @@ class JobControllerTest {
     @MockBean
     private JobService jobService;
 
-    // --- THE CRITICAL FIXES ---
-
-    // 1. Your filter needs JwtTokenUtil, so we mock it.
     @MockBean
     private JwtTokenUtil jwtTokenUtil;
 
-    // 2. Your filter needs UserRepository, so we mock it.
-    // WITHOUT THIS, THE APP CONTEXT WILL FAIL TO LOAD.
     @MockBean
     private UserRepository userRepository;
 
-    // 3. Spring Security internals often look for this.
     @MockBean
     private UserDetailsService userDetailsService;
-
-    // ---------------------------
 
     @Test
     @WithMockUser(username = "ajay", roles = "USER")
@@ -68,8 +59,14 @@ class JobControllerTest {
 
         JobCreateRequest request = new JobCreateRequest();
         request.setName("Test Job");
-        request.setTargetUrl("https://example.com");
-        request.setHttpMethod(HttpMethodType.GET);
+        request.setHttpUrl("https://example.com");  // ✅ Changed from setTargetUrl
+        request.setHttpMethod("GET");
+        request.setScheduleType("CRON");  // ✅ ADD THIS - Required field!
+        request.setCronExpression("0 * * * *");
+        request.setPriority(5);
+        request.setTimeoutSeconds(30);
+        request.setMaxRetries(3);
+        request.setBackoffStrategy("LINEAR");  // ✅ Changed from setBackoffSeconds
 
         // When
         when(jobService.create(any(JobCreateRequest.class), anyString())).thenReturn(response);

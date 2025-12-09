@@ -51,4 +51,21 @@ public class AnalyticsController {
         stats.put("successRate", "0%");
         return stats;
     }
+    
+    @GetMapping("/status-counts")
+    public Map<String, Object> getStatusCounts() {
+        var jobs = jobRepository.findAll();
+        
+        Map<String, Long> statusCounts = new HashMap<>();
+        for (JobStatus status : JobStatus.values()) {
+            long count = jobs.stream()
+                .filter(job -> job.getStatus() == status)
+                .count();
+            statusCounts.put(status.name(), count);
+        }
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("statusCounts", statusCounts);
+        return response;
+    }
 }

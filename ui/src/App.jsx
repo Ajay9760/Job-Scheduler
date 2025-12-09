@@ -1,48 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, PlayCircle, PauseCircle, XCircle, CheckCircle, AlertCircle, TrendingUp, Activity, Zap, RefreshCw } from 'lucide-react';
+import { login, fetchJobs, createJob, fetchStatusCounts } from './api';
 
-const API_BASE = "http://localhost:8080";
+const API_BASE = "http://localhost:8080/api";
 
-// API Functions
+// API Functions using the imported functions from api.js
 const api = {
-  login: async (username, password) => {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    if (!res.ok) throw new Error("Login failed");
-    return res.json();
-  },
-
-  fetchJobs: async (token) => {
-    const res = await fetch(`${API_BASE}/jobs`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error("Failed to fetch jobs");
-    return res.json();
-  },
-
-  createJob: async (token, job) => {
-    const res = await fetch(`${API_BASE}/jobs`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify(job)
-    });
-    if (!res.ok) throw new Error("Failed to create job");
-    return res.json();
-  },
-
-  fetchStatusCounts: async (token) => {
-    const res = await fetch(`${API_BASE}/analytics/status-counts`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (!res.ok) throw new Error("Failed to fetch analytics");
-    return res.json();
-  }
+  login,
+  fetchJobs,
+  createJob,
+  fetchStatusCounts
 };
 
 const STATUS_CONFIG = {
@@ -72,7 +39,9 @@ function App() {
     priority: 5,
     timeoutSeconds: 30,
     webhookUrl: '',
-    recurringInterval: ''
+    recurringInterval: '',
+    scheduleType: 'CRON',  // Default to CRON
+    cronExpression: '0 0 * * * *'  // Default to hourly
   });
 
   useEffect(() => {
@@ -123,7 +92,9 @@ function App() {
         priority: 5,
         timeoutSeconds: 30,
         webhookUrl: '',
-        recurringInterval: ''
+        recurringInterval: '',
+        scheduleType: 'CRON',
+        cronExpression: '0 0 * * * *'
       });
       await loadData();
     } catch (err) {
@@ -521,6 +492,46 @@ function App() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Schedule Type *</label>
+                  <select
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.scheduleType}
+                    onChange={(e) => setJobForm({ ...jobForm, scheduleType: e.target.value })}
+                    required
+                  >
+                    <option value="CRON">CRON</option>
+                    <option value="FIXED_RATE">Fixed Rate</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">
+                    {jobForm.scheduleType === 'CRON' ? 'CRON Expression *' : 'Interval (ms) *'}
+                  </label>
+                  {jobForm.scheduleType === 'CRON' ? (
+                    <input
+                      type="text"
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="0 0 * * * *"
+                      value={jobForm.cronExpression}
+                      onChange={(e) => setJobForm({ ...jobForm, cronExpression: e.target.value })}
+                      required
+                    />
+                  ) : (
+                    <input
+                      type="number"
+                      min="1000"
+                      step="1000"
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="e.g. 5000 for 5 seconds"
+                      value={jobForm.cronExpression}
+                      onChange={(e) => setJobForm({ ...jobForm, cronExpression: e.target.value })}
+                      required
+                    />
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-2">Priority (0-10)</label>
                   <input

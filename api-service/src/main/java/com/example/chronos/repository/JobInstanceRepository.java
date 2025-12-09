@@ -4,39 +4,86 @@ import com.example.chronos.domain.JobInstance;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;  // 👈 add this
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface JobInstanceRepository extends JpaRepository<JobInstance, UUID> {
+public interface JobInstanceRepository extends
+        JpaRepository<JobInstance, Long>,
+        JpaSpecificationExecutor<JobInstance> {
 
+    // Find instances by job ID
     Page<JobInstance> findByJobId(Long jobId, Pageable pageable);
 
-    List<JobInstance> findByJobIdAndStatusIn(Long jobId, List<JobInstance.InstanceStatus> statuses);
+    // Find instances by status
+    List<JobInstance> findByStatus(JobInstance.InstanceStatus status);
 
-    @Query("SELECT ji FROM JobInstance ji WHERE ji.jobId = :jobId AND ji.createdAt >= :startDate")
-    List<JobInstance> findRecentByJobId(@Param("jobId") Long jobId, @Param("startDate") LocalDateTime startDate);
+    // Find instances by job ID and status
+    Page<JobInstance> findByJobIdAndStatus(Long jobId,
+                                           JobInstance.InstanceStatus status,
+                                           Pageable pageable);
 
-    @Query("SELECT COUNT(ji) FROM JobInstance ji WHERE ji.jobId = :jobId AND ji.status = :status")
-    Long countByJobIdAndStatus(@Param("jobId") Long jobId, @Param("status") JobInstance.InstanceStatus status);
+    // Find latest instance for a job
+    Optional<JobInstance> findFirstByJobIdOrderByCreatedAtDesc(Long jobId);
 
-    @Query("SELECT AVG(ji.executionTimeMs) FROM JobInstance ji WHERE ji.jobId = :jobId AND ji.status = 'COMPLETED' AND ji.executionTimeMs IS NOT NULL")
-    Double findAvgExecutionTimeByJobId(@Param("jobId") Long jobId);
+    // Find instances scheduled between dates
+    List<JobInstance> findByScheduledTimeBetween(LocalDateTime start, LocalDateTime end);
 
-    @Query("SELECT MIN(ji.executionTimeMs) FROM JobInstance ji WHERE ji.jobId = :jobId AND ji.status = 'COMPLETED' AND ji.executionTimeMs IS NOT NULL")
-    Long findMinExecutionTimeByJobId(@Param("jobId") Long jobId);
+    // Find instances ready to run (PENDING status, scheduled time passed)
+    @Query("""
+           SELECT ji FROM JobInstance ji
+           WHERE ji.status = 'PENDING'
+             AND ji.scheduledTime <= :currentTime
+           ORDER BY ji.scheduledTime ASC
+           """)
+    List<JobInstance> findPendingInstancesReadyToRun(@Param("currentTime") LocalDateTime currentTime);
 
-    @Query("SELECT MAX(ji.executionTimeMs) FROM JobInstance ji WHERE ji.jobId = :jobId AND ji.status = 'COMPLETED' AND ji.executionTimeMs IS NOT NULL")
-    Long findMaxExecutionTimeByJobId(@Param("jobId") Long jobId);
+    // Count instances by job ID and status
+    long countByJobIdAndStatus(Long jobId, JobInstance.InstanceStatus status);
 
-    @Query("SELECT COUNT(ji) FROM JobInstance ji WHERE ji.createdAt >= :startDate AND ji.status = :status")
-    Long countByCreatedAtAfterAndStatus(@Param("startDate") LocalDateTime startDate, @Param("status") JobInstance.InstanceStatus status);
+    // Get statistics for a job
+    @Query("""
+           SELECT COUNT(ji), AVG(ji.durationMs), MAX(ji.durationMs), MIN(ji.durationMs)
+           FROM JobInstance ji
+           WHERE ji.job.id = :jobId AND ji.status = 'SUCCESS'
+           """)
+    Object[] getJobStatistics(@Param("jobId") Long jobId);
 
-    @Query("SELECT EXTRACT(HOUR FROM ji.createdAt) as hour, COUNT(ji) as count FROM JobInstance ji WHERE ji.createdAt >= :startDate GROUP BY EXTRACT(HOUR FROM ji.createdAt) ORDER BY count DESC")
-    List<Object[]> findBusiestHours(@Param("startDate") LocalDateTime startDate);
+    // Find failed instances for retry
+    @Query("""
+       SELECT ji FROM JobInstance ji
+       WHERE ji.status = 'FAILED'
+         AND ji.retryCount < ji.job.maxRetries
+         AND ji.retryCount < :maxRetries
+       ORDER BY ji.scheduledTime ASC
+       """)
+    List<JobInstance> findFailedInstancesForRetry(@Param("maxRetries") int maxRetries);
+    // Delete old instances (cleanup)
+    void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
+
+    // Find recent instances
+    @Query("""
+           SELECT ji FROM JobInstance ji
+           WHERE ji.job.id = :jobId
+           ORDER BY ji.createdAt DESC
+           """)
+    Page<JobInstance> findRecentInstancesByJobId(@Param("jobId") Long jobId, Pageable pageable);
+
+    // Count total runs for a job
+    long countByJobId(Long jobId);
+
+    // Find running instances
+    @Query("""
+           SELECT ji FROM JobInstance ji
+           WHERE ji.status = 'RUNNING'
+             AND ji.startedAt < :timeoutThreshold
+           """)
+    List<JobInstance> findStuckRunningInstances(@Param("timeoutThreshold") LocalDateTime timeoutThreshold);
 }
