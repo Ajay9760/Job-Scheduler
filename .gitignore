@@ -1,4 +1,7 @@
-# Project exclude paths
-/api-service/target/
-/scheduler-service/target/
-/target/
+# Maven build directories
+**/target/
+
+# IDE files
+*.iml
+.idea/
+.vscode/
