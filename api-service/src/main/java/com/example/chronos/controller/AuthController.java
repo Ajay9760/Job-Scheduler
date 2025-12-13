@@ -5,6 +5,8 @@ import com.example.chronos.dto.auth.LoginRequest;
 import com.example.chronos.dto.auth.LoginResponse;
 import com.example.chronos.repository.UserRepository;
 import com.example.chronos.security.JwtTokenUtil;
+import com.example.chronos.service.AuthService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -16,6 +18,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")  // ✅ FIXED: Added "/api" prefix
 public class AuthController {
@@ -25,6 +30,8 @@ public class AuthController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private AuthService authService;
     public AuthController(AuthenticationManager authenticationManager,
                           JwtTokenUtil jwtTokenUtil,
                           UserRepository userRepository,
@@ -36,29 +43,19 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> register(@RequestBody User user) {
         System.out.println("=== REGISTER REQUEST RECEIVED ===");
-        System.out.println("Username: " + request.getUsername());
+        System.out.println("Username: " + user.getUsername());
 
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
-            System.out.println("User already exists");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username exists");
-        }
+        User registeredUser = authService.register(user);
+        System.out.println("User registered successfully: " + registeredUser.getUsername());
 
-        User newUser = new User();
-        newUser.setUsername(request.getUsername());
-        newUser.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        newUser.setRoles("USER");  // Default role
+        // Return JSON instead of plain text
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "User registered successfully");
+        response.put("username", registeredUser.getUsername());
 
-        try {
-            userRepository.save(newUser);
-            System.out.println("User registered successfully: " + request.getUsername());
-            return ResponseEntity.ok("User registered successfully");
-        } catch (Exception e) {
-            System.err.println("Error saving user: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Registration failed");
-        }
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")

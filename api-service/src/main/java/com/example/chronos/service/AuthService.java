@@ -21,6 +21,15 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    // Remove 'static' and implement the method
+    public User register(User user) {
+        // Encode the password before saving
+        user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
+
+        // Save and return the user
+        return userRepository.save(user);
+    }
+
     public String login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid credentials"));

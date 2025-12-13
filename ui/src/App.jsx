@@ -1,16 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, PlayCircle, PauseCircle, XCircle, CheckCircle, AlertCircle, TrendingUp, Activity, Zap, RefreshCw } from 'lucide-react';
-import { login, fetchJobs, createJob, fetchStatusCounts } from './api';
+import {
+  Calendar,
+  Clock,
+  PlayCircle,
+  PauseCircle,
+  XCircle,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  Activity,
+  Zap,
+  RefreshCw}
+  from 'lucide-react';
 
-const API_BASE = "http://localhost:8080/api";
-
-// API Functions using the imported functions from api.js
-const api = {
+import {
   login,
   fetchJobs,
   createJob,
-  fetchStatusCounts
-};
+  fetchStatusCounts,
+  triggerJob,
+  pauseJob,
+  resumeJob,
+  deleteJob,
+} from './api';
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-orange-500', icon: Clock, label: 'Pending' },
@@ -19,7 +31,7 @@ const STATUS_CONFIG = {
   COMPLETED: { color: 'bg-green-500', icon: CheckCircle, label: 'Completed' },
   FAILED: { color: 'bg-red-500', icon: XCircle, label: 'Failed' },
   CANCELLED: { color: 'bg-gray-500', icon: PauseCircle, label: 'Cancelled' },
-  PAUSED: { color: 'bg-yellow-500', icon: PauseCircle, label: 'Paused' }
+  PAUSED: { color: 'bg-yellow-500', icon: PauseCircle, label: 'Paused' },
 };
 
 function App() {
@@ -28,21 +40,34 @@ function App() {
   const [jobs, setJobs] = useState([]);
   const [statusCounts, setStatusCounts] = useState({});
   const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
-  const [filters, setFilters] = useState({ status: 'ALL', method: 'ALL', search: '' });
-  const [jobForm, setJobForm] = useState({
-    name: '',
-    targetUrl: '',
-    httpMethod: 'GET',
-    priority: 5,
-    timeoutSeconds: 30,
-    webhookUrl: '',
-    recurringInterval: '',
-    scheduleType: 'CRON',  // Default to CRON
-    cronExpression: '0 0 * * * *'  // Default to hourly
+    const [showCreateModal, setShowCreateModal] = useState(false);
+  const [loginForm, setLoginForm] = useState({
+    username: 'admin',
+    password: 'admin123',
   });
+  const [filters, setFilters] = useState({
+    status: 'ALL',
+    method: 'ALL',
+    search: '',
+  });
+
+const [jobForm, setJobForm] = useState({
+  name: '',
+  description: '',
+  httpUrl: '',
+  httpMethod: 'GET',
+  httpBody: '',
+  httpHeaders: {},
+  scheduleType: 'CRON',
+  cronExpression: '0 * * * *',
+  priority: 5,
+  timeoutSeconds: 30,
+  maxRetries: 3,
+  backoffStrategy: 'LINEAR',
+  webhookUrl: ''
+});
 
   useEffect(() => {
     if (!token) return;
@@ -51,39 +76,66 @@ function App() {
     return () => clearInterval(interval);
   }, [token]);
 
-  const loadData = async () => {
-    if (!token) return;
-    try {
-      const [jobsRes, statusRes] = await Promise.all([
-        api.fetchJobs(token),
-        api.fetchStatusCounts(token)
-      ]);
-      setJobs(jobsRes);
-      setStatusCounts(statusRes);
-    } catch (err) {
-      console.error(err);
-    }
-  };
+useEffect(() => {
+  console.log('📊 Current State:');
+  console.log('Token:', token ? 'Present' : 'Missing');
+  console.log('Jobs Count:', jobs.length);
+  console.log('Jobs:', jobs);
+  console.log('Status Counts:', statusCounts);
+}, [token, jobs, statusCounts]);
+
+ const loadData = async () => {
+   if (!token) return;
+   try {
+     setLoading(true);
+     console.log('🔄 Loading data...');
+
+     const [jobsRes, statusRes] = await Promise.all([
+       fetchJobs(token),
+       fetchStatusCounts(token)
+     ]);
+
+     console.log('✅ Jobs loaded:', jobsRes);
+     console.log('✅ Status counts:', statusRes);
+
+     setJobs(Array.isArray(jobsRes) ? jobsRes : []);
+     setStatusCounts(statusRes || {});
+   } catch (err) {
+     console.error('❌ Load error:', err);
+     setError('Failed to load data: ' + err.message);
+     setTimeout(() => setError(''), 3000);
+   } finally {
+     setLoading(false);
+   }
+ };
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
     try {
-      const res = await api.login(loginForm.username, loginForm.password);
-      setToken(res.token);
+      setLoading(true);
+      const data = await login(loginForm.username, loginForm.password);
+      setToken(data.token);
+      localStorage.setItem('token', data.token);
+      setError('');
     } catch (err) {
-      setError('Invalid credentials');
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogout = () => {
+    setToken(null);
+    localStorage.removeItem('token');
+    setJobs([]);
+    setStatusCounts({});
   };
 
   const handleCreateJob = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.createJob(token, jobForm);
+      await createJob(token, jobForm);
       setShowCreateModal(false);
       setJobForm({
         name: '',
@@ -94,20 +146,25 @@ function App() {
         webhookUrl: '',
         recurringInterval: '',
         scheduleType: 'CRON',
-        cronExpression: '0 0 * * * *'
+        cronExpression: '0 0 * * * *',
       });
       await loadData();
+      setSuccess('Job created successfully!');
+      setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError('Failed to create job');
+      setError(err.message || 'Failed to create job');
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredJobs = jobs.filter(j => {
+  const filteredJobs = jobs.filter((j) => {
     if (filters.status !== 'ALL' && j.status !== filters.status) return false;
     if (filters.method !== 'ALL' && j.httpMethod !== filters.method) return false;
-    if (filters.search && !`${j.name} ${j.targetUrl}`.toLowerCase().includes(filters.search.toLowerCase())) {
+    if (
+      filters.search &&
+      !`${j.name} ${j.targetUrl}`.toLowerCase().includes(filters.search.toLowerCase())
+    ) {
       return false;
     }
     return true;
@@ -135,22 +192,30 @@ function App() {
 
             <form onSubmit={handleLogin} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Username
+                </label>
                 <input
                   type="text"
                   className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
                   value={loginForm.username}
-                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                  onChange={(e) =>
+                    setLoginForm({ ...loginForm, username: e.target.value })
+                  }
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Password
+                </label>
                 <input
                   type="password"
                   className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
                   value={loginForm.password}
-                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                  onChange={(e) =>
+                    setLoginForm({ ...loginForm, password: e.target.value })
+                  }
                 />
               </div>
 
@@ -171,6 +236,87 @@ function App() {
   }
 
   // Main Dashboard
+  // Render login form if no token
+  if (!token) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 py-8 px-6 rounded-2xl shadow-2xl sm:px-10">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-2">Job Scheduler</h2>
+              <p className="text-slate-400">Sign in to your account</p>
+            </div>
+            {error && (
+              <div className="mb-4 p-3 bg-red-900/50 text-red-300 text-sm rounded-md border border-red-800/50">
+                {error}
+              </div>
+            )}
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                setLoading(true);
+                const data = await login(loginForm.username, loginForm.password);
+                setToken(data.token);
+                localStorage.setItem('token', data.token);
+              } catch (err) {
+                setError(err.message || 'Login failed. Please check your credentials.');
+              } finally {
+                setLoading(false);
+              }
+            }} className="space-y-6">
+              <div>
+                <label htmlFor="username" className="block text-sm font-medium text-slate-300 mb-1">
+                  Username
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter your username"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                  className="w-full bg-slate-800/50 border border-slate-700 rounded-lg py-2.5 px-4 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  placeholder="Enter your password"
+                  required
+                />
+              </div>
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                >
+                  {loading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Signing in...
+                    </>
+                  ) : 'Sign in'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Main app content when logged in
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900">
       <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40"></div>
@@ -189,7 +335,7 @@ function App() {
                 </div>
 
                 <nav className="hidden md:flex gap-2">
-                  {['dashboard', 'jobs', 'analytics'].map(tab => (
+                  {['dashboard', 'jobs', 'analytics'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -235,14 +381,21 @@ function App() {
                   const count = statusCounts[status] || 0;
 
                   return (
-                    <div key={status} className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6 hover:border-slate-700 transition-all">
+                    <div
+                      key={status}
+                      className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6 hover:border-slate-700 transition-all"
+                    >
                       <div className="flex items-center justify-between mb-3">
-                        <div className={`w-10 h-10 ${config.color} rounded-lg flex items-center justify-center`}>
+                        <div
+                          className={`w-10 h-10 ${config.color} rounded-lg flex items-center justify-center`}
+                        >
                           <Icon className="w-5 h-5 text-white" />
                         </div>
                         <span className="text-2xl font-bold text-white">{count}</span>
                       </div>
-                      <p className="text-slate-400 text-sm font-medium">{config.label}</p>
+                      <p className="text-slate-400 text-sm font-medium">
+                        {config.label}
+                      </p>
                     </div>
                   );
                 })}
@@ -265,7 +418,12 @@ function App() {
                       <span className="text-slate-400 text-sm">Success Rate</span>
                     </div>
                     <p className="text-2xl font-bold text-white">
-                      {jobs.length > 0 ? Math.round(((statusCounts.COMPLETED || 0) / jobs.length) * 100) : 0}%
+                      {jobs.length > 0
+                        ? Math.round(
+                            ((statusCounts.COMPLETED || 0) / jobs.length) * 100,
+                          )
+                        : 0}
+                      %
                     </p>
                   </div>
 
@@ -293,14 +451,21 @@ function App() {
               <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
                 <h2 className="text-xl font-bold text-white mb-4">Recent Jobs</h2>
                 <div className="space-y-2">
-                  {jobs.slice(0, 5).map(job => {
+                  {jobs.slice(0, 5).map((job) => {
                     const config = STATUS_CONFIG[job.status];
                     const Icon = config?.icon || Clock;
 
                     return (
-                      <div key={job.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors">
+                      <div
+                        key={job.id}
+                        className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors"
+                      >
                         <div className="flex items-center gap-4">
-                          <div className={`w-8 h-8 ${config?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center`}>
+                          <div
+                            className={`w-8 h-8 ${
+                              config?.color || 'bg-gray-500'
+                            } rounded-lg flex items-center justify-center`}
+                          >
                             <Icon className="w-4 h-4 text-white" />
                           </div>
                           <div>
@@ -309,8 +474,14 @@ function App() {
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <span className="text-sm text-slate-400">{job.httpMethod}</span>
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${config?.color || 'bg-gray-500'} text-white`}>
+                          <span className="text-sm text-slate-400">
+                            {job.httpMethod}
+                          </span>
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              config?.color || 'bg-gray-500'
+                            } text-white`}
+                          >
                             {job.status}
                           </span>
                         </div>
@@ -322,297 +493,470 @@ function App() {
             </div>
           )}
 
-          {/* Jobs Tab */}
-          {activeTab === 'jobs' && (
-            <div className="space-y-6">
-              {/* Filters */}
-              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
-                <h2 className="text-xl font-bold text-white mb-4">Filters</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Status</label>
-                    <select
-                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={filters.status}
-                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-                    >
-                      <option value="ALL">All Statuses</option>
-                      {Object.keys(STATUS_CONFIG).map(s => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
+         {/* Jobs Tab */}
+         {activeTab === 'jobs' && (
+           <div className="space-y-6">
+             {/* Filters */}
+             <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
+               <h2 className="text-xl font-bold text-white mb-4">Filters</h2>
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                 <div>
+                   <label className="block text-sm font-medium text-slate-400 mb-2">Status</label>
+                   <select
+                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                     value={filters.status}
+                     onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                   >
+                     <option value="ALL">All Statuses</option>
+                     {Object.keys(STATUS_CONFIG).map(s => (
+                       <option key={s} value={s}>{s}</option>
+                     ))}
+                   </select>
+                 </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Method</label>
-                    <select
-                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={filters.method}
-                      onChange={(e) => setFilters({ ...filters, method: e.target.value })}
-                    >
-                      <option value="ALL">All Methods</option>
-                      {['GET', 'POST', 'PUT', 'DELETE'].map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
+                 <div>
+                   <label className="block text-sm font-medium text-slate-400 mb-2">Method</label>
+                   <select
+                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                     value={filters.method}
+                     onChange={(e) => setFilters({ ...filters, method: e.target.value })}
+                   >
+                     <option value="ALL">All Methods</option>
+                     {['GET', 'POST', 'PUT', 'DELETE'].map(m => (
+                       <option key={m} value={m}>{m}</option>
+                     ))}
+                   </select>
+                 </div>
 
+                 <div>
+                   <label className="block text-sm font-medium text-slate-400 mb-2">Search</label>
+                   <input
+                     type="text"
+                     placeholder="Search by name..."
+                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                     value={filters.search}
+                     onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                   />
+                 </div>
+               </div>
+             </div>
+
+             {/* Jobs Grid */}
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+               {loading ? (
+                 <div className="col-span-full flex justify-center py-12">
+                   <RefreshCw className="w-8 h-8 text-indigo-500 animate-spin" />
+                 </div>
+               ) : filteredJobs.length === 0 ? (
+                 <div className="col-span-full bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-8 text-center">
+                   <p className="text-slate-400">
+                     {jobs.length === 0 ? 'No jobs created yet. Click "+ New Job" to create one!' : 'No jobs match the current filters'}
+                   </p>
+                 </div>
+               ) : (
+                 filteredJobs.map(job => {
+                   const config = STATUS_CONFIG[job.status];
+                   const Icon = config?.icon || Clock;
+
+                   return (
+                     <div key={job.id} className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6 hover:border-slate-700 transition-all">
+                       <div className="flex items-start justify-between mb-4">
+                         <div className="flex items-center gap-3">
+                           <div className={`w-10 h-10 ${config?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center`}>
+                             <Icon className="w-5 h-5 text-white" />
+                           </div>
+                           <div>
+                             <h3 className="text-white font-bold">{job.name}</h3>
+                             <span className="text-xs text-slate-400">ID: {job.id}</span>
+                           </div>
+                         </div>
+                         <span className={`px-3 py-1 ${config?.color || 'bg-gray-500'} text-white text-xs rounded-full font-medium`}>
+                           {job.status}
+                         </span>
+                       </div>
+
+                       <div className="space-y-2 mb-4">
+                         <div className="flex items-center justify-between text-sm">
+                           <span className="text-slate-400">Method:</span>
+                           <span className="text-white font-medium">{job.httpMethod}</span>
+                         </div>
+                         <div className="flex items-center justify-between text-sm">
+                           <span className="text-slate-400">Priority:</span>
+                           <span className="text-white font-medium">{job.priority}</span>
+                         </div>
+                         <div className="text-sm">
+                           <span className="text-slate-400">URL:</span>
+                           <p className="text-white truncate mt-1" title={job.targetUrl}>{job.targetUrl}</p>
+                         </div>
+                         {job.nextRunAt && (
+                           <div className="text-sm">
+                             <span className="text-slate-400">Next Run:</span>
+                             <p className="text-white mt-1">{new Date(job.nextRunAt).toLocaleString()}</p>
+                           </div>
+                         )}
+                       </div>
+
+                       <div className="flex gap-2">
+                         <button
+                           onClick={async () => {
+                             try {
+                               setLoading(true);
+                               await triggerJob(token, job.id);
+                               setSuccess('Job triggered!');
+                               setTimeout(() => setSuccess(''), 3000);
+                               await loadData();
+                             } catch (err) {
+                               setError(err.message);
+                               setTimeout(() => setError(''), 3000);
+                             } finally {
+                               setLoading(false);
+                             }
+                           }}
+                           disabled={loading || job.status === 'PAUSED'}
+                           className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                         >
+                           <PlayCircle className="w-4 h-4" />
+                           Trigger
+                         </button>
+
+                         {job.status === 'PAUSED' ? (
+                           <button
+                             onClick={async () => {
+                               try {
+                                 setLoading(true);
+                                 await resumeJob(token, job.id);
+                                 setSuccess('Job resumed!');
+                                 setTimeout(() => setSuccess(''), 3000);
+                                 await loadData();
+                               } catch (err) {
+                                 setError(err.message);
+                                 setTimeout(() => setError(''), 3000);
+                               } finally {
+                                 setLoading(false);
+                               }
+                             }}
+                             disabled={loading}
+                             className="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                           >
+                             <PlayCircle className="w-4 h-4" />
+                             Resume
+                           </button>
+                         ) : (
+                           <button
+                             onClick={async () => {
+                               try {
+                                 setLoading(true);
+                                 await pauseJob(token, job.id);
+                                 setSuccess('Job paused!');
+                                 setTimeout(() => setSuccess(''), 3000);
+                                 await loadData();
+                               } catch (err) {
+                                 setError(err.message);
+                                 setTimeout(() => setError(''), 3000);
+                               } finally {
+                                 setLoading(false);
+                               }
+                             }}
+                             disabled={loading}
+                             className="flex-1 px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                           >
+                             <PauseCircle className="w-4 h-4" />
+                             Pause
+                           </button>
+                         )}
+
+                         <button
+                           onClick={async () => {
+                             if (!confirm(`Delete "${job.name}"?`)) return;
+                             try {
+                               setLoading(true);
+                               await deleteJob(token, job.id);
+                               setSuccess('Job deleted!');
+                               setTimeout(() => setSuccess(''), 3000);
+                               await loadData();
+                             } catch (err) {
+                               setError(err.message);
+                               setTimeout(() => setError(''), 3000);
+                             } finally {
+                               setLoading(false);
+                             }
+                           }}
+                           disabled={loading}
+                           className="px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center"
+                         >
+                           <XCircle className="w-4 h-4" />
+                         </button>
+                       </div>
+                     </div>
+                   );
+                 })
+               )}
+             </div>
+           </div>
+         )}
+        </main>
+
+        {/* Create Job Modal */}
+        {showCreateModal && (
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-2xl font-bold text-white mb-6">Create New Job</h2>
+
+              <form onSubmit={handleCreateJob} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Search</label>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Job Name *
+                    </label>
                     <input
                       type="text"
-                      placeholder="Search by name or URL..."
+                      required
                       className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      value={filters.search}
-                      onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                      value={jobForm.name}
+                      onChange={(e) =>
+                        setJobForm({ ...jobForm, name: e.target.value })
+                      }
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Jobs Table */}
-              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-white">All Jobs</h2>
-                    <span className="text-slate-400">
-                      Showing {filteredJobs.length} of {jobs.length}
-                    </span>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      HTTP Method
+                    </label>
+                    <select
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={jobForm.httpMethod}
+                      onChange={(e) =>
+                        setJobForm({ ...jobForm, httpMethod: e.target.value })
+                      }
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                      <option value="DELETE">DELETE</option>
+                    </select>
                   </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-800/50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Name</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Target URL</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Method</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Status</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Priority</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Next Run</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800">
-                      {filteredJobs.length === 0 ? (
-                        <tr>
-                          <td colSpan="7" className="px-6 py-8 text-center text-slate-400">
-                            No jobs match the current filters
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredJobs.map(job => {
-                          const config = STATUS_CONFIG[job.status];
-
-                          return (
-                            <tr key={job.id} className="hover:bg-slate-800/50 transition-colors">
-                              <td className="px-6 py-4 text-slate-300">{job.id}</td>
-                              <td className="px-6 py-4 text-white font-medium">{job.name}</td>
-                              <td className="px-6 py-4 text-slate-400 text-sm max-w-xs truncate">{job.targetUrl}</td>
-                              <td className="px-6 py-4">
-                                <span className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded">
-                                  {job.httpMethod}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className={`px-3 py-1 ${config?.color || 'bg-gray-500'} text-white text-xs rounded-full font-medium`}>
-                                  {job.status}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 text-slate-300">{job.priority}</td>
-                              <td className="px-6 py-4 text-slate-400 text-sm">
-                                {job.nextRunAt ? new Date(job.nextRunAt).toLocaleString() : '-'}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Analytics Tab */}
-          {activeTab === 'analytics' && (
-            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
-              <h2 className="text-xl font-bold text-white mb-4">Analytics Dashboard</h2>
-              <p className="text-slate-400">Analytics and detailed monitoring coming soon...</p>
-            </div>
-          )}
-        </main>
-      </div>
-
-      {/* Create Job Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowCreateModal(false)}>
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-2xl font-bold text-white mb-6">Create New Job</h2>
-
-            <form onSubmit={handleCreateJob} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Job Name *</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={jobForm.name}
-                    onChange={(e) => setJobForm({ ...jobForm, name: e.target.value })}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">HTTP Method</label>
-                  <select
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={jobForm.httpMethod}
-                    onChange={(e) => setJobForm({ ...jobForm, httpMethod: e.target.value })}
-                  >
-                    <option value="GET">GET</option>
-                    <option value="POST">POST</option>
-                    <option value="PUT">PUT</option>
-                    <option value="DELETE">DELETE</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Target URL *</label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://api.example.com/endpoint"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={jobForm.targetUrl}
-                  onChange={(e) => setJobForm({ ...jobForm, targetUrl: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Schedule Type *</label>
-                  <select
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={jobForm.scheduleType}
-                    onChange={(e) => setJobForm({ ...jobForm, scheduleType: e.target.value })}
-                    required
-                  >
-                    <option value="CRON">CRON</option>
-                    <option value="FIXED_RATE">Fixed Rate</option>
-                  </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-400 mb-2">
-                    {jobForm.scheduleType === 'CRON' ? 'CRON Expression *' : 'Interval (ms) *'}
+                    Target URL *
                   </label>
-                  {jobForm.scheduleType === 'CRON' ? (
-                    <input
-                      type="text"
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://api.example.com/endpoint"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.targetUrl}
+                    onChange={(e) =>
+                      setJobForm({ ...jobForm, targetUrl: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Schedule Type *
+                    </label>
+                    <select
                       className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="0 0 * * * *"
-                      value={jobForm.cronExpression}
-                      onChange={(e) => setJobForm({ ...jobForm, cronExpression: e.target.value })}
+                      value={jobForm.scheduleType}
+                      onChange={(e) =>
+                        setJobForm({ ...jobForm, scheduleType: e.target.value })
+                      }
                       required
-                    />
-                  ) : (
+                    >
+                      <option value="CRON">CRON</option>
+                      <option value="FIXED_RATE">Fixed Rate</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      {jobForm.scheduleType === 'CRON'
+                        ? 'CRON Expression *'
+                        : 'Interval (ms) *'}
+                    </label>
+                    {jobForm.scheduleType === 'CRON' ? (
+                      <input
+                        type="text"
+                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="0 0 * * * *"
+                        value={jobForm.cronExpression}
+                        onChange={(e) =>
+                          setJobForm({
+                            ...jobForm,
+                            cronExpression: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        min="1000"
+                        step="1000"
+                        className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        placeholder="e.g. 5000 for 5 seconds"
+                        value={jobForm.cronExpression}
+                        onChange={(e) =>
+                          setJobForm({
+                            ...jobForm,
+                            cronExpression: e.target.value,
+                          })
+                        }
+                        required
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Priority (0–10)
+                    </label>
                     <input
                       type="number"
-                      min="1000"
-                      step="1000"
+                      min="0"
+                      max="10"
                       className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      placeholder="e.g. 5000 for 5 seconds"
-                      value={jobForm.cronExpression}
-                      onChange={(e) => setJobForm({ ...jobForm, cronExpression: e.target.value })}
-                      required
+                      value={jobForm.priority}
+                      onChange={(e) =>
+                        setJobForm({
+                          ...jobForm,
+                          priority: Number(e.target.value),
+                        })
+                      }
                     />
-                  )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Timeout (sec)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={jobForm.timeoutSeconds}
+                      onChange={(e) =>
+                        setJobForm({
+                          ...jobForm,
+                          timeoutSeconds: Number(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">
+                      Recurring
+                    </label>
+                    <select
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={jobForm.recurringInterval}
+                      onChange={(e) =>
+                        setJobForm({
+                          ...jobForm,
+                          recurringInterval: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="">One-time</option>
+                      <option value="HOURLY">Hourly</option>
+                      <option value="DAILY">Daily</option>
+                      <option value="WEEKLY">Weekly</option>
+                      <option value="MONTHLY">Monthly</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Priority (0-10)</label>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">
+                    Webhook URL (optional)
+                  </label>
                   <input
-                    type="number"
-                    min="0"
-                    max="10"
+                    type="url"
+                    placeholder="https://your-app.com/webhook"
                     className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={jobForm.priority}
-                    onChange={(e) => setJobForm({ ...jobForm, priority: Number(e.target.value) })}
+                    value={jobForm.webhookUrl}
+                    onChange={(e) =>
+                      setJobForm({ ...jobForm, webhookUrl: e.target.value })
+                    }
                   />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Receive notifications when job completes or fails
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Timeout (sec)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={jobForm.timeoutSeconds}
-                    onChange={(e) => setJobForm({ ...jobForm, timeoutSeconds: Number(e.target.value) })}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-400 mb-2">Recurring</label>
-                  <select
-                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={jobForm.recurringInterval}
-                    onChange={(e) => setJobForm({ ...jobForm, recurringInterval: e.target.value })}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
                   >
-                    <option value="">One-time</option>
-                    <option value="HOURLY">Hourly</option>
-                    <option value="DAILY">Daily</option>
-                    <option value="WEEKLY">Weekly</option>
-                    <option value="MONTHLY">Monthly</option>
-                  </select>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
+                  >
+                    {loading ? 'Creating...' : 'Create Job'}
+                  </button>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Webhook URL (optional)</label>
-                <input
-                  type="url"
-                  placeholder="https://your-app.com/webhook"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={jobForm.webhookUrl}
-                  onChange={(e) => setJobForm({ ...jobForm, webhookUrl: e.target.value })}
-                />
-                <p className="text-xs text-slate-500 mt-1">Receive notifications when job completes or fails</p>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
-                >
-                  {loading ? 'Creating...' : 'Create Job'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
-
-      {/* Error Toast */}
-      {error && (
-        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
-          <AlertCircle className="w-5 h-5" />
-          <span>{error}</span>
-          <button onClick={() => setError('')} className="ml-2 hover:opacity-80">×</button>
-        </div>
-      )}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                value={loginForm.username}
+                onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                required
+              />
+            </div>
+            <div>
+              <button
+                type="submit"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                disabled={loading}
+              >
+                {loading ? 'Signing in...' : 'Sign in'}
+              </button>
+            </div>
+          </form>
+      </div>
     </div>
+  )}
   );
 }
 

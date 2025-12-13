@@ -49,8 +49,6 @@ class JobControllerValidationTest {
     @MockBean
     private UserDetailsService userDetailsService;
 
-    // ------------------------------------
-
     @Test
     @WithMockUser
     void createJob_returns400WhenInvalidBody() throws Exception {

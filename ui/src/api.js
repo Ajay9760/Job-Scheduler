@@ -1,7 +1,10 @@
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, PlayCircle, PauseCircle, XCircle, CheckCircle, AlertCircle, TrendingUp, Activity, Zap, RefreshCw } from 'lucide-react';
+import { login, fetchJobs, createJob, fetchStatusCounts, triggerJob, pauseJob, resumeJob, deleteJob, getJobInstances } from './api';
+
 const API_BASE = "http://localhost:8080/api";
 
 // Auth
-
 export async function login(username, password) {
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -12,17 +15,19 @@ export async function login(username, password) {
   return res.json();
 }
 
-// Jobs
-
+// Jobs - FIXED to handle different response formats
 export async function fetchJobs(token) {
   const res = await fetch(`${API_BASE}/jobs`, {
-    headers: { 
+    headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}` 
+      'Authorization': `Bearer ${token}`
     }
   });
   if (!res.ok) throw new Error("Failed to fetch jobs");
-  return res.json();
+  const data = await res.json();
+
+  // Handle if response is wrapped in {data: [...]} or direct array
+  return Array.isArray(data) ? data : (data.data || []);
 }
 
 export async function createJob(token, job) {
@@ -34,50 +39,55 @@ export async function createJob(token, job) {
     },
     body: JSON.stringify(job)
   });
-  if (!res.ok) throw new Error("Failed to create job");
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to create job");
+  }
   return res.json();
 }
 
-// Analytics
-
-export async function fetchStatusCounts(token) {
-  const res = await fetch(`${API_BASE}/statistics/dashboard`, {
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}` 
-    }
-  });
-  if (!res.ok) throw new Error("Failed to fetch analytics");
-  const data = await res.json();
-  // Transform the response to match the expected format
-  return {
-    statusCounts: data.data // The dashboard endpoint returns data in a 'data' field
-  };
-}
-
-// Job Control
-
-export async function startJob(token, jobId) {
-  const res = await fetch(`${API_BASE}/jobs/${jobId}/start`, {
+export async function triggerJob(token, jobId) {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/trigger`, {
     method: "POST",
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
   });
-  if (!res.ok) throw new Error("Failed to start job");
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to trigger job");
+  }
   return res.json();
 }
 
-export async function stopJob(token, jobId) {
-  const res = await fetch(`${API_BASE}/jobs/${jobId}/stop`, {
+export async function pauseJob(token, jobId) {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/pause`, {
     method: "POST",
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     }
   });
-  if (!res.ok) throw new Error("Failed to stop job");
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to pause job");
+  }
+  return res.json();
+}
+
+export async function resumeJob(token, jobId) {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/resume`, {
+    method: "POST",
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to resume job");
+  }
   return res.json();
 }
 
@@ -89,6 +99,37 @@ export async function deleteJob(token, jobId) {
       'Authorization': `Bearer ${token}`
     }
   });
-  if (!res.ok) throw new Error("Failed to delete job");
+  if (!res.ok && res.status !== 204) {
+    const error = await res.json();
+    throw new Error(error.error || "Failed to delete job");
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+// Analytics - Calculate from jobs
+export async function fetchStatusCounts(token) {
+  try {
+    const jobs = await fetchJobs(token);
+
+    const statusCounts = jobs.reduce((acc, job) => {
+      acc[job.status] = (acc[job.status] || 0) + 1;
+      return acc;
+    }, {});
+
+    return statusCounts;
+  } catch (error) {
+    console.error('Failed to fetch status counts:', error);
+    return {};
+  }
+}
+
+export async function getJobInstances(token, jobId) {
+  const res = await fetch(`${API_BASE}/jobs/${jobId}/instances`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!res.ok) throw new Error("Failed to fetch instances");
   return res.json();
 }
