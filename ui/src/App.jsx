@@ -1,256 +1,637 @@
-import React, { useEffect, useState } from 'react';
-import {
-  Calendar,
-  Clock,
-  PlayCircle,
-  PauseCircle,
-  XCircle,
-  CheckCircle,
-  TrendingUp,
-  Activity,
-  Zap,
-  RefreshCw,
-} from 'lucide-react';
-
-import {
-  login,
-  fetchJobs,
-  createJob,
-  fetchStatusCounts,
-  triggerJob,
-  pauseJob,
-  resumeJob,
-  deleteJob,
-} from './api';
-
-
-/* -------------------- CONSTANTS -------------------- */
+import React, { useState, useEffect } from 'react';
+import { Calendar, Clock, PlayCircle, PauseCircle, XCircle, CheckCircle, AlertCircle, TrendingUp, Activity, Zap, RefreshCw } from 'lucide-react';
+import * as api from './api';
 
 const STATUS_CONFIG = {
-  PENDING: { color: 'bg-orange-500', icon: Clock },
-  SCHEDULED: { color: 'bg-indigo-500', icon: Calendar },
-  RUNNING: { color: 'bg-sky-500', icon: Activity },
-  COMPLETED: { color: 'bg-green-500', icon: CheckCircle },
-  FAILED: { color: 'bg-red-500', icon: XCircle },
-  PAUSED: { color: 'bg-yellow-500', icon: PauseCircle },
+  PENDING: { color: 'bg-orange-500', icon: Clock, label: 'Pending' },
+  SCHEDULED: { color: 'bg-indigo-500', icon: Calendar, label: 'Scheduled' },
+  RUNNING: { color: 'bg-sky-500', icon: Activity, label: 'Running' },
+  COMPLETED: { color: 'bg-green-500', icon: CheckCircle, label: 'Completed' },
+  FAILED: { color: 'bg-red-500', icon: XCircle, label: 'Failed' },
+  CANCELLED: { color: 'bg-gray-500', icon: PauseCircle, label: 'Cancelled' },
+  PAUSED: { color: 'bg-yellow-500', icon: PauseCircle, label: 'Paused' }
 };
 
-/* -------------------- APP -------------------- */
-
-export default function App() {
+function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
   const [activeTab, setActiveTab] = useState('dashboard');
   const [jobs, setJobs] = useState([]);
   const [statusCounts, setStatusCounts] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const [loginForm, setLoginForm] = useState({
-    username: 'admin',
-    password: 'admin123',
-  });
-
-  const [filters, setFilters] = useState({
-    status: 'ALL',
-    method: 'ALL',
-    search: '',
-  });
-
+  const [loginForm, setLoginForm] = useState({ username: 'admin', password: 'admin123' });
+  const [filters, setFilters] = useState({ status: 'ALL', method: 'ALL', search: '' });
   const [jobForm, setJobForm] = useState({
     name: '',
-    description: '',
     targetUrl: '',
     httpMethod: 'GET',
-    scheduleType: 'CRON',
-    cronExpression: '0 * * * *',
     priority: 5,
     timeoutSeconds: 30,
     maxRetries: 3,
+    retryCount: 0,
+    backoffSeconds: 2,
     webhookUrl: '',
+    scheduleType: 'CRON',
+    cronExpression: '0 0 * * *'
   });
-
-  /* -------------------- DATA LOADING -------------------- */
 
   useEffect(() => {
     if (!token) return;
     loadData();
-    const id = setInterval(loadData, 5000);
-    return () => clearInterval(id);
+    const interval = setInterval(loadData, 5000);
+    return () => clearInterval(interval);
   }, [token]);
 
-  async function loadData() {
+  const loadData = async () => {
+    if (!token) return;
     try {
-      setLoading(true);
       const [jobsRes, statusRes] = await Promise.all([
-        fetchJobs(token),
-        fetchStatusCounts(token),
+        api.fetchJobs(token),
+        api.fetchStatusCounts(token)
       ]);
-      setJobs(Array.isArray(jobsRes) ? jobsRes : []);
-      setStatusCounts(statusRes || {});
-    } catch (e) {
-      setError('Failed to load data');
-    } finally {
-      setLoading(false);
+      setJobs(jobsRes);
+      setStatusCounts(statusRes);
+      setError('');
+    } catch (err) {
+      console.error('Error loading data:', err);
+      if (err.message.includes('401') || err.message.includes('token')) {
+        setError('Session expired. Please login again.');
+        handleLogout();
+      }
     }
-  }
+  };
 
-  /* -------------------- AUTH -------------------- */
-
-  async function handleLogin(e) {
+  const handleLogin = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = await login(loginForm.username, loginForm.password);
-      localStorage.setItem('token', res.token);
+      const res = await api.login(loginForm.username, loginForm.password);
       setToken(res.token);
-    } catch {
-      setError('Invalid credentials');
+      localStorage.setItem('token', res.token);
+      setError('');
+    } catch (err) {
+      setError(err.message || 'Invalid credentials');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function handleLogout() {
-    localStorage.removeItem('token');
+  const handleLogout = () => {
     setToken(null);
-  }
+    localStorage.removeItem('token');
+    setJobs([]);
+    setStatusCounts({});
+  };
 
-  /* -------------------- JOB ACTIONS -------------------- */
-
-  async function handleCreateJob(e) {
+  const handleCreateJob = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    setError('');
     try {
-      setLoading(true);
-      await createJob(token, jobForm);
+      await api.createJob(token, jobForm);
       setShowCreateModal(false);
+      setJobForm({
+        name: '',
+        targetUrl: '',
+        httpMethod: 'GET',
+        priority: 5,
+        timeoutSeconds: 30,
+        maxRetries: 3,
+        retryCount: 0,
+        backoffSeconds: 2,
+        webhookUrl: '',
+        scheduleType: 'CRON',
+        cronExpression: '0 0 * * *'
+      });
       await loadData();
-      setSuccess('Job created');
-    } catch {
-      setError('Failed to create job');
+    } catch (err) {
+      setError(err.message || 'Failed to create job');
     } finally {
       setLoading(false);
     }
-  }
-
-  /* -------------------- FILTER -------------------- */
+  };
 
   const filteredJobs = jobs.filter(j => {
     if (filters.status !== 'ALL' && j.status !== filters.status) return false;
     if (filters.method !== 'ALL' && j.httpMethod !== filters.method) return false;
-    if (
-      filters.search &&
-      !`${j.name} ${j.targetUrl}`.toLowerCase().includes(filters.search.toLowerCase())
-    ) return false;
+    if (filters.search && !`${j.name} ${j.targetUrl}`.toLowerCase().includes(filters.search.toLowerCase())) {
+      return false;
+    }
     return true;
   });
 
-  /* -------------------- LOGIN SCREEN -------------------- */
-
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950">
-        <form
-          onSubmit={handleLogin}
-          className="bg-slate-900 p-8 rounded-xl w-full max-w-md space-y-4"
-        >
-          <h1 className="text-white text-2xl font-bold text-center">Chronos</h1>
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40"></div>
 
-          <input
-            className="w-full p-3 bg-slate-800 text-white rounded"
-            placeholder="Username"
-            value={loginForm.username}
-            onChange={e => setLoginForm({ ...loginForm, username: e.target.value })}
-          />
+        <div className="relative w-full max-w-md">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur-2xl opacity-20"></div>
+          <div className="relative bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
+            <div className="flex items-center justify-center mb-8">
+              <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/50">
+                <Clock className="w-8 h-8 text-white" />
+              </div>
+            </div>
 
-          <input
-            type="password"
-            className="w-full p-3 bg-slate-800 text-white rounded"
-            placeholder="Password"
-            value={loginForm.password}
-            onChange={e => setLoginForm({ ...loginForm, password: e.target.value })}
-          />
+            <h1 className="text-3xl font-bold text-center mb-2 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              Chronos
+            </h1>
+            <p className="text-slate-400 text-center mb-8">Job Scheduler System</p>
 
-          <button
-            disabled={loading}
-            className="w-full bg-indigo-600 text-white py-3 rounded"
-          >
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Username</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  value={loginForm.username}
+                  onChange={(e) => setLoginForm({ ...loginForm, username: e.target.value })}
+                />
+              </div>
 
-          {error && <p className="text-red-400 text-center">{error}</p>}
-        </form>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
+                <input
+                  type="password"
+                  className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 text-white"
+                  value={loginForm.password}
+                  onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
+              >
+                {loading ? 'Signing in...' : 'Sign In'}
+              </button>
+
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/50 rounded-lg">
+                  <p className="text-red-400 text-sm text-center">{error}</p>
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
       </div>
     );
   }
 
-  /* -------------------- MAIN DASHBOARD -------------------- */
-
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
-      <header className="p-4 border-b border-slate-800 flex justify-between">
-        <span className="font-bold">Chronos</span>
-        <div className="flex gap-3">
-          <button onClick={() => setShowCreateModal(true)}>+ New Job</button>
-          <button onClick={handleLogout}>Logout</button>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-indigo-950 to-slate-900">
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-40"></div>
 
-      <main className="p-6">
-        {activeTab === 'jobs' && (
-          <div className="grid md:grid-cols-3 gap-4">
-            {loading ? (
-              <RefreshCw className="animate-spin" />
-            ) : (
-              filteredJobs.map(job => {
-                const Icon = STATUS_CONFIG[job.status]?.icon || Clock;
-                return (
-                  <div key={job.id} className="bg-slate-900 p-4 rounded">
-                    <div className="flex justify-between">
-                      <h3>{job.name}</h3>
-                      <Icon />
-                    </div>
-                    <p className="text-sm text-slate-400">{job.targetUrl}</p>
+      <div className="relative">
+        <header className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-xl">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-8">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/50">
+                    <Clock className="w-5 h-5 text-white" />
                   </div>
-                );
-              })
-            )}
+                  <span className="text-xl font-bold text-white">Chronos</span>
+                </div>
+
+                <nav className="hidden md:flex gap-2">
+                  {['dashboard', 'jobs', 'analytics'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`px-4 py-2 rounded-lg font-medium capitalize transition-all ${
+                        activeTab === tab
+                          ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg font-medium hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30"
+                >
+                  + New Job
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 text-slate-400 hover:text-white transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
           </div>
-        )}
-      </main>
+        </header>
 
-      {/* CREATE JOB MODAL */}
+        <main className="max-w-7xl mx-auto px-6 py-8">
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Object.entries(STATUS_CONFIG).map(([status, config]) => {
+                  const Icon = config.icon;
+                  const count = statusCounts[status] || 0;
+
+                  return (
+                    <div key={status} className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6 hover:border-slate-700 transition-all">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className={`w-10 h-10 ${config.color} rounded-lg flex items-center justify-center`}>
+                          <Icon className="w-5 h-5 text-white" />
+                        </div>
+                        <span className="text-2xl font-bold text-white">{count}</span>
+                      </div>
+                      <p className="text-slate-400 text-sm font-medium">{config.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-white">System Health</h2>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-slate-400">Operational</span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <TrendingUp className="w-5 h-5 text-green-500" />
+                      <span className="text-slate-400 text-sm">Success Rate</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white">
+                      {jobs.length > 0 ? Math.round(((statusCounts.COMPLETED || 0) / jobs.length) * 100) : 0}%
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Activity className="w-5 h-5 text-sky-500" />
+                      <span className="text-slate-400 text-sm">Active Jobs</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white">
+                      {(statusCounts.RUNNING || 0) + (statusCounts.SCHEDULED || 0)}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-800/50 rounded-lg p-4">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Zap className="w-5 h-5 text-yellow-500" />
+                      <span className="text-slate-400 text-sm">Total Jobs</span>
+                    </div>
+                    <p className="text-2xl font-bold text-white">{jobs.length}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold text-white mb-4">Recent Jobs</h2>
+                <div className="space-y-2">
+                  {jobs.length === 0 ? (
+                    <p className="text-slate-400 text-center py-8">No jobs yet. Create your first job to get started!</p>
+                  ) : (
+                    jobs.slice(0, 5).map(job => {
+                      const config = STATUS_CONFIG[job.status];
+                      const Icon = config?.icon || Clock;
+
+                      return (
+                        <div key={job.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg hover:bg-slate-800 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-8 h-8 ${config?.color || 'bg-gray-500'} rounded-lg flex items-center justify-center`}>
+                              <Icon className="w-4 h-4 text-white" />
+                            </div>
+                            <div>
+                              <p className="text-white font-medium">{job.name}</p>
+                              <p className="text-slate-400 text-sm">{job.targetUrl}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <span className="text-sm text-slate-400">{job.httpMethod}</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${config?.color || 'bg-gray-500'} text-white`}>
+                              {job.status}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'jobs' && (
+            <div className="space-y-6">
+              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
+                <h2 className="text-xl font-bold text-white mb-4">Filters</h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Status</label>
+                    <select
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={filters.status}
+                      onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+                    >
+                      <option value="ALL">All Statuses</option>
+                      {Object.keys(STATUS_CONFIG).map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Method</label>
+                    <select
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={filters.method}
+                      onChange={(e) => setFilters({ ...filters, method: e.target.value })}
+                    >
+                      <option value="ALL">All Methods</option>
+                      {['GET', 'POST', 'PUT', 'DELETE'].map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-400 mb-2">Search</label>
+                    <input
+                      type="text"
+                      placeholder="Search by name or URL..."
+                      className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      value={filters.search}
+                      onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl overflow-hidden">
+                <div className="p-6 border-b border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-white">All Jobs</h2>
+                    <span className="text-slate-400">
+                      Showing {filteredJobs.length} of {jobs.length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-slate-800/50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Target URL</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Method</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Schedule</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase">Next Run</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {filteredJobs.length === 0 ? (
+                        <tr>
+                          <td colSpan="8" className="px-6 py-8 text-center text-slate-400">
+                            {jobs.length === 0 ? 'No jobs created yet' : 'No jobs match the current filters'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredJobs.map(job => {
+                          const config = STATUS_CONFIG[job.status];
+
+                          return (
+                            <tr key={job.id} className="hover:bg-slate-800/50 transition-colors">
+                              <td className="px-6 py-4 text-slate-300">{job.id}</td>
+                              <td className="px-6 py-4 text-white font-medium">{job.name}</td>
+                              <td className="px-6 py-4 text-slate-400 text-sm max-w-xs truncate">{job.targetUrl}</td>
+                              <td className="px-6 py-4">
+                                <span className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded">
+                                  {job.httpMethod}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className={`px-3 py-1 ${config?.color || 'bg-gray-500'} text-white text-xs rounded-full font-medium`}>
+                                  {job.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4">
+                                <span className="px-2 py-1 bg-indigo-900/50 text-indigo-300 text-xs rounded">
+                                  {job.scheduleType || 'CRON'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-slate-400 text-xs font-mono">{job.cronExpression || '-'}</td>
+                              <td className="px-6 py-4 text-slate-400 text-sm">
+                                {job.nextRunAt ? new Date(job.nextRunAt).toLocaleString() : 'Not scheduled'}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800/50 rounded-xl p-6">
+              <h2 className="text-xl font-bold text-white mb-4">Analytics Dashboard</h2>
+              <p className="text-slate-400">Analytics and detailed monitoring coming soon...</p>
+            </div>
+          )}
+        </main>
+      </div>
+
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center">
-          <form
-            onSubmit={handleCreateJob}
-            className="bg-slate-900 p-6 rounded-xl w-full max-w-lg space-y-4"
-          >
-            <h2 className="text-xl font-bold">Create Job</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setShowCreateModal(false)}>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold text-white mb-6">Create New Job</h2>
 
-            <input
-              required
-              className="w-full p-2 bg-slate-800 rounded"
-              placeholder="Job Name"
-              value={jobForm.name}
-              onChange={e => setJobForm({ ...jobForm, name: e.target.value })}
-            />
+            <form onSubmit={handleCreateJob} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Job Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.name}
+                    onChange={(e) => setJobForm({ ...jobForm, name: e.target.value })}
+                  />
+                </div>
 
-            <input
-              required
-              className="w-full p-2 bg-slate-800 rounded"
-              placeholder="Target URL"
-              value={jobForm.targetUrl}
-              onChange={e => setJobForm({ ...jobForm, targetUrl: e.target.value })}
-            />
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Target URL *</label>
+                  <input
+                    type="url"
+                    required
+                    placeholder="https://api.example.com/endpoint"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.targetUrl}
+                    onChange={(e) => setJobForm({ ...jobForm, targetUrl: e.target.value })}
+                  />
+                </div>
+              </div>
 
-            <button className="bg-indigo-600 w-full py-2 rounded">
-              Create
-            </button>
-          </form>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Priority (0-10)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.priority}
+                    onChange={(e) => setJobForm({ ...jobForm, priority: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Higher = more important</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Timeout (sec)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.timeoutSeconds}
+                    onChange={(e) => setJobForm({ ...jobForm, timeoutSeconds: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Max execution time</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">HTTP Method</label>
+                  <select
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.httpMethod}
+                    onChange={(e) => setJobForm({ ...jobForm, httpMethod: e.target.value })}
+                  >
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                    <option value="PUT">PUT</option>
+                    <option value="DELETE">DELETE</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Schedule Type *</label>
+                  <select
+                    required
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.scheduleType}
+                    onChange={(e) => setJobForm({ ...jobForm, scheduleType: e.target.value })}
+                  >
+                    <option value="CRON">CRON Expression</option>
+                    <option value="IMMEDIATE">Run Immediately</option>
+                    <option value="DELAYED">Delayed</option>
+                  </select>
+                  <p className="text-xs text-slate-500 mt-1">How should this job be scheduled?</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">
+                    Cron Expression *
+                    <span className="text-slate-500 font-normal ml-2">(required for CRON type)</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="0 0 * * * (daily at midnight)"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.cronExpression}
+                    onChange={(e) => setJobForm({ ...jobForm, cronExpression: e.target.value })}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Examples: "0 0 * * *" (daily), "0 */6 * * *" (every 6 hours)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Backoff (sec)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.backoffSeconds}
+                    onChange={(e) => setJobForm({ ...jobForm, backoffSeconds: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Delay between retries</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Max Retries</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={jobForm.maxRetries}
+                    onChange={(e) => setJobForm({ ...jobForm, maxRetries: Number(e.target.value) })}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Number of retry attempts on failure</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-400 mb-2">Webhook URL (optional)</label>
+                <input
+                  type="url"
+                  placeholder="https://your-app.com/webhook"
+                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={jobForm.webhookUrl}
+                  onChange={(e) => setJobForm({ ...jobForm, webhookUrl: e.target.value })}
+                />
+                <p className="text-xs text-slate-500 mt-1">Receive notifications when job completes or fails</p>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50"
+                >
+                  {loading ? 'Creating...' : 'Create Job'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
+          <AlertCircle className="w-5 h-5" />
+          <span>{error}</span>
+          <button onClick={() => setError('')} className="ml-2 hover:opacity-80 text-xl leading-none">&times;</button>
         </div>
       )}
     </div>
   );
 }
+
+export default App;

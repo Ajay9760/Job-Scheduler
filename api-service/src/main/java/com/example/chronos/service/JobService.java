@@ -6,7 +6,6 @@ import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.dto.job.JobUpdateRequest;
 import com.example.chronos.exception.ResourceNotFoundException;
 import com.example.chronos.repository.JobRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -59,7 +58,19 @@ public class JobService {
     }
 
 
-
+   /**
+     * List ALL jobs in the database (regardless of owner)
+     * Use this for admin views or when you need to see all jobs
+     */
+    @Transactional(readOnly = true)
+    public List<JobResponse> listAllJobs() {
+        log.info("Fetching all jobs from database");
+        List<Job> jobs = jobRepository.findAll(); // Gets ALL jobs
+        log.info("Found {} total jobs in database", jobs.size());
+        return jobs.stream()
+                .map(jobMapper::toDto)
+                .collect(Collectors.toList());
+    }
     /**
      * Get a specific job for a user (Original method name from your controller)
      */
@@ -67,6 +78,12 @@ public class JobService {
     public JobResponse getForUser(Long id, String owner) {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner) // Use your existing field name
                 .orElseThrow(() -> new IllegalArgumentException("Job not found or access denied: " + id));
+
+        log.info("Current user: {}", owner);
+        log.info("Job owner (createdBy): {}", job.getCreatedBy());
+        if (!job.getCreatedBy().equals(owner)) {
+            throw new org.springframework.security.access.AccessDeniedException("Access Denied");
+        }
         log.info("✅ Retrieved job {} for user {}", id, owner);
         return jobMapper.toDto(job);
     }
@@ -76,6 +93,13 @@ public class JobService {
     public void delete(Long id, String owner) {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner)
                 .orElseThrow(() -> new ResourceNotFoundException("Job", "id", id));
+
+        log.info("Current user: {}", owner);
+        log.info("Job owner (createdBy): {}", job.getCreatedBy());
+
+        if (!job.getCreatedBy().equals(owner)) {
+            throw new org.springframework.security.access.AccessDeniedException("Access Denied");
+        }
 
         jobRepository.delete(job);
         log.info("🗑️ Deleted job: {} for owner: {}", id, owner);
@@ -88,6 +112,12 @@ public class JobService {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner) // Use your existing field name
                 .orElseThrow(() -> new IllegalArgumentException("Job not found or access denied: " + id));
 
+        log.info("Current user: {}", owner);
+        log.info("Job owner (createdBy): {}", job.getCreatedBy());
+
+        if (!job.getCreatedBy().equals(owner)) {
+            throw new org.springframework.security.access.AccessDeniedException("Access Denied");
+        }
         log.info("Updating job: {} for owner: {}", id, owner);
 
         jobMapper.updateEntity(job, request);
@@ -106,6 +136,13 @@ public class JobService {
     public void pause(Long id, String owner) {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner) // Use your existing field name
                 .orElseThrow(() -> new IllegalArgumentException("Job not found or access denied: " + id));
+
+        log.info("Current user: {}", owner);
+        log.info("Job owner (createdBy): {}", job.getCreatedBy());
+
+        if (!job.getCreatedBy().equals(owner)) {
+            throw new org.springframework.security.access.AccessDeniedException("Access Denied");
+        }
 
         job.setStatus(com.example.chronos.domain.enums.JobStatus.PAUSED);
         jobRepository.save(job);

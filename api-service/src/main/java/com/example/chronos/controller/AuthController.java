@@ -22,24 +22,26 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")  // ✅ FIXED: Added "/api" prefix
+@RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtTokenUtil jwtTokenUtil;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService; // ✅ Changed from @Autowired to final
 
-    @Autowired
-    private AuthService authService;
+    // ✅ Use constructor injection instead of @Autowired field
     public AuthController(AuthenticationManager authenticationManager,
                           JwtTokenUtil jwtTokenUtil,
                           UserRepository userRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          AuthService authService) {
         this.authenticationManager = authenticationManager;
         this.jwtTokenUtil = jwtTokenUtil;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.authService = authService;
     }
 
     @PostMapping("/register")
@@ -49,11 +51,32 @@ public class AuthController {
 
         User registeredUser = authService.register(user);
         System.out.println("User registered successfully: " + registeredUser.getUsername());
+        System.out.println("Assigned roles: " + registeredUser.getRoles()); // ✅ Log roles
 
-        // Return JSON instead of plain text
         Map<String, String> response = new HashMap<>();
         response.put("message", "User registered successfully");
         response.put("username", registeredUser.getUsername());
+        response.put("roles", registeredUser.getRoles()); // ✅ Include roles in response
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/register-admin")
+    public ResponseEntity<?> registerAdmin(@RequestBody User user) {
+        System.out.println("=== ADMIN REGISTER REQUEST RECEIVED ===");
+        System.out.println("Username: " + user.getUsername());
+
+        // ✅ Force ADMIN role WITH ROLE_ prefix
+        user.setRoles("ROLE_ADMIN");
+
+        User registeredUser = authService.register(user);
+        System.out.println("Admin user registered successfully: " + registeredUser.getUsername());
+        System.out.println("Assigned roles: " + registeredUser.getRoles());
+
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Admin user registered successfully");
+        response.put("username", registeredUser.getUsername());
+        response.put("roles", registeredUser.getRoles());
 
         return ResponseEntity.ok(response);
     }
@@ -70,6 +93,7 @@ public class AuthController {
             );
 
             System.out.println("Authentication successful");
+            System.out.println("User authorities: " + authenticate.getAuthorities()); // ✅ Log roles
 
             // Extract username
             String username = authenticate.getName();

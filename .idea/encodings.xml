@@ -3,6 +3,8 @@
   <component name="Encoding">
     <file url="file://$PROJECT_DIR$/api-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/api-service/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chronos-core/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chronos-core/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/scheduler-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/scheduler-service/src/main/resources" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />

@@ -58,6 +58,7 @@ public class JobInstanceDTO {
             case RUNNING -> "blue";
             case PENDING -> "yellow";
             case CANCELLED -> "gray";
+            case RETRY_PENDING -> null;
             case SKIPPED -> "orange";
         };
     }

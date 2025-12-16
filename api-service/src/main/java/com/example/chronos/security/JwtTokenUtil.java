@@ -37,9 +37,10 @@ public class JwtTokenUtil {
     public boolean validateToken(String token) {
         try {
             Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token);
+                    .verifyWith(key)
+                    .clockSkewSeconds(300) // Add 5 minutes tolerance
+                    .build()
+                    .parseSignedClaims(token);
             return true;
         } catch (Exception e) {
             return false;

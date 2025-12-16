@@ -44,6 +44,11 @@ public class SecurityConfig {
                 // ✅ ENABLE CORS
                 .cors(Customizer.withDefaults())
 
+                // ✅ Set session management to STATELESS (important for JWT)
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
                 // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         // Allow both /api/auth and /auth paths for backward compatibility
@@ -62,28 +67,23 @@ public class SecurityConfig {
                         .requestMatchers("/api/public/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/analytics/**").permitAll()
+
+                        // ✅ Admin endpoints - require ADMIN role
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                        // All other requests require authentication
                         .anyRequest().authenticated()
                 )
 
-                // Stateless JWT-based auth
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
-
-                // No form login / basic auth
-                .formLogin(AbstractHttpConfigurer::disable)
-                .httpBasic(AbstractHttpConfigurer::disable)
-
-                // Add JWT filter
+                // ✅ ADD JWT FILTER BEFORE UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Allow H2 console in frame
-                .headers(headers ->
-                        headers.frameOptions(frame -> frame.disable())
-                );
+                // Configure HTTP Basic authentication
+                .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
+
 
     // ✅ IMPROVED CORS configuration
     @Bean

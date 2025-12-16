@@ -73,7 +73,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     var authorities = Arrays.stream(user.getRoles().split(","))
                             .map(String::trim)
                             .filter(r -> !r.isEmpty())
-                            .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
+                            .map(SimpleGrantedAuthority::new)  // ✅ FIXED: Don't add ROLE_ prefix (already in DB)
                             .collect(Collectors.toList());
 
                     var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);

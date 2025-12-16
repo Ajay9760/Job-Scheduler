@@ -24,7 +24,7 @@ public class JobInstance {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "job_id", nullable = false)
     private Job job;
 
@@ -76,6 +76,10 @@ public class JobInstance {
         updatedAt = LocalDateTime.now();
     }
 
+    public Integer getMaxRetries() {
+        return job.getMaxRetries();
+    }
+
     public enum InstanceStatus {
         PENDING,
         RUNNING,
@@ -83,7 +87,7 @@ public class JobInstance {
         FAILED,
         TIMEOUT,
         CANCELLED,
-        SKIPPED
+        RETRY_PENDING, SKIPPED
     }
 
     // Calculate duration if both start and completion times exist
