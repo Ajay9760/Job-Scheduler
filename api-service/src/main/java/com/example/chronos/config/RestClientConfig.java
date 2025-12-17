@@ -1,0 +1,29 @@
+package com.example.chronos.config;
+
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.DefaultResponseErrorHandler;
+import org.springframework.web.client.RestTemplate;
+
+import java.time.Duration;
+
+@Configuration
+public class RestClientConfig {
+
+    @Bean
+    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        return builder
+                .setConnectTimeout(Duration.ofSeconds(5))
+                .setReadTimeout(Duration.ofSeconds(30))
+                .errorHandler(new DefaultResponseErrorHandler() {
+                    @Override
+                    public boolean hasError(
+                            org.springframework.http.client.ClientHttpResponse response) {
+                        // Let caller handle 4xx/5xx manually
+                        return false;
+                    }
+                })
+                .build();
+    }
+}

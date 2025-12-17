@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chronos
+  labels:
+    name: chronos
+    environment: production
+    app: job-scheduler
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: chronos-quota
+  namespace: chronos
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    limits.cpu: "20"
+    limits.memory: 40Gi
+    persistentvolumeclaims: "10"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: chronos-limits
+  namespace: chronos
+spec:
+  limits:
+    - max:
+        cpu: "2"
+        memory: 4Gi
+      min:
+        cpu: "100m"
+        memory: 128Mi
+      default:
+        cpu: "500m"
+        memory: 512Mi
+      defaultRequest:
+        cpu: "250m"
+        memory: 256Mi
+      type: Container
