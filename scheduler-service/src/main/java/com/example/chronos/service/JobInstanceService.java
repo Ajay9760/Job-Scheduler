@@ -2,7 +2,7 @@ package com.example.chronos.service;
 
 import com.example.chronos.domain.Job;
 import com.example.chronos.domain.JobInstance;
-import com.example.chronos.repository.JobInstanceRepository;
+import com.example.chronos.repository.JobInatanceRespository;
 import com.example.chronos.repository.JobRepository;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ import java.util.Map;
 @Slf4j
 public class JobInstanceService {
 
-    private final JobInstanceRepository instanceRepository;
+    private final JobInatanceRespository instanceRepository;
     private final JobRepository jobRepository;
     private final RabbitTemplate rabbitTemplate;
     private final CronCalculator cronCalculator;

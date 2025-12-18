@@ -1,30 +1,18 @@
 # ---------- Build stage ----------
-FROM eclipse-temurin:21-jre
-WORKDIR /app
+FROM maven:3.9.9-eclipse-temurin-21 AS build
+WORKDIR /build
 
-# Copy parent POM
 COPY pom.xml .
+RUN mvn -B dependency:go-offline
 
-# Copy module POMs (required for Maven reactor)
-COPY api-service/pom.xml api-service/pom.xml
-COPY scheduler-service/pom.xml scheduler-service/pom.xml
-COPY worker-service/pom.xml worker-service/pom.xml
-
-# Download dependencies
-RUN mvn -B -pl scheduler-service -am dependency:go-offline
-
-# Copy source code
-COPY scheduler-service/src scheduler-service/src
-COPY api-service/src api-service/src
-
-# Build scheduler-service
+COPY src src
 RUN mvn -B clean package -DskipTests
 
 # ---------- Runtime stage ----------
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
+COPY --from=build /build/target/*jar app.jar
 
-COPY target/scheduler-service-1.0.0-SNAPSHOT.jar app.jar
-EXPOSE 8081
+EXPOSE 8080
 ENTRYPOINT ["java","-jar","app.jar"]

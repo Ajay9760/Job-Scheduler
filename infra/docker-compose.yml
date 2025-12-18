@@ -19,8 +19,6 @@ services:
     networks:
       - chronos-network
 
-
-
   rabbitmq:
     image: rabbitmq:3.11-management
     container_name: chronos-rabbitmq
@@ -28,8 +26,8 @@ services:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     ports:
-      - "5672:5672"   # AMQP port
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
@@ -53,31 +51,24 @@ services:
     networks:
       - chronos-network
 
-volumes:
-  postgres-data:
-    driver: local
-  redis-data:
-    driver: local
-    scheduler-service:
-      image: scheduler-service:latest
-      container_name: scheduler-service
-      depends_on:
-        postgres:
-          condition: service_healthy
-        rabbitmq:
-          condition: service_healthy
-        redis:
-          condition: service_healthy
-      environment:
-        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: postgres
-      networks:
-        - chronos-network
-      ports:
-        - "8081:8080"
-
-
-networks:
-  chronos-network:
-    driver: bridge
+  scheduler-service:
+    build:
+      context: ../scheduler-service
+      dockerfile: Dockerfile
+    image: scheduler-service:latest
+    container_name: scheduler-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+    ports:
+      - "8081:8080"
+    networks:
+      - chronos-network
