@@ -1,10 +1,10 @@
-version: '3.9'
 
 services:
   postgres:
     image: postgres:13
+    container_name: chronos-postgres
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: chronos
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
@@ -12,7 +12,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,8 +53,8 @@ services:
 
   scheduler-service:
     build:
-      context: ../scheduler-service
-      dockerfile: Dockerfile
+      context: ...
+      dockerfile: scheduler-service/Dockerfile
     image: scheduler-service:latest
     container_name: scheduler-service
     depends_on:
@@ -65,10 +65,23 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/postgres
+      SPRING_DATASOURCE_URL : jdbc:postgresql://postgres:5432/chronos
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update  # ← THIS IS THE FIX
     ports:
       - "8081:8080"
     networks:
       - chronos-network
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  chronos-network:
+    driver: bridge

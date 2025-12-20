@@ -31,31 +31,42 @@ public class JobExecutor {
      * Execute a job instance
      */
     @Transactional
-    public void executeJob(Long instanceId) {
-        JobInstance instance = instanceRepository.findById(instanceId)
-                .orElseThrow(() -> new IllegalArgumentException("Instance not found: " + instanceId));
-
-        Job job = instance.getJob();
-
-        log.info("Executing job instance {} for job {} ({})", instanceId, job.getId(), job.getName());
-        createLog(instance, LogLevel.INFO, "Starting job execution");
-
-        // Mark as running
-        instance.markAsStarted();
-        instanceRepository.save(instance);
-
+    public void executeJob(JobInstance instance) {
         try {
+            // Load the job details
+            Job job = jobRepository.findById(instance.getJob().getId())
+                    .orElseThrow(() -> new RuntimeException("Job not found: " + instance.getJob().getId()));
+
             // Execute the HTTP request
             ResponseEntity<String> response = executeHttpRequest(instance, job);
 
-            // Handle success
+            // Handle successful execution
             handleSuccess(instance, job, response);
-
         } catch (Exception e) {
-            // Handle failure
-            handleFailure(instance, job, e);
+            // Handle failed execution
+            handleFailure(instance, instance.getJob(), e);
+            handleFailureTx(instance.getId(), e);
         }
     }
+
+    @Transactional
+    public JobInstance fetchAndMarkRunning(Long instanceId) {
+        JobInstance instance = instanceRepository.findById(instanceId)
+                .orElseThrow(() -> new IllegalArgumentException("Instance not found"));
+        instance.markAsStarted();
+        return instanceRepository.save(instance);
+    }
+
+    @Transactional
+    public void handleSuccessTx(Long instanceId, ResponseEntity<String> response) {
+        // DB update only
+    }
+
+    @Transactional
+    public void handleFailureTx(Long instanceId, Exception e) {
+        // DB update only
+    }
+
 
     /**
      * Execute the actual HTTP request
