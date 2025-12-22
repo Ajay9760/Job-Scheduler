@@ -3,18 +3,19 @@ package com.example.chronos;
 import com.example.chronos.config.TestSecurityConfig;
 import com.example.chronos.controller.JobController;
 import com.example.chronos.dto.job.JobCreateRequest;
+import com.example.chronos.service.JobInstanceService;
 import com.example.chronos.service.JobService;
 import com.example.chronos.repository.UserRepository; // ✅ Import 1
 import com.example.chronos.security.JwtTokenUtil;   // ✅ Import 2
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.userdetails.UserDetailsService; // ✅ Import 3
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,9 +37,8 @@ class JobControllerValidationTest {
     @MockBean
     private JobService jobService;
 
-    // --- PASTE THESE 3 MOCKS HERE TOO ---
-    // Since JobControllerValidationTest loads the same Controller/Security layers,
-    // it faces the exact same "Missing Bean" error if these are not mocked.
+    @MockBean
+    private JobInstanceService jobInstanceService;
 
     @MockBean
     private JwtTokenUtil jwtTokenUtil;
@@ -49,15 +49,13 @@ class JobControllerValidationTest {
     @MockBean
     private UserDetailsService userDetailsService;
 
-    // ------------------------------------
-
     @Test
-    @WithMockUser
+    @AutoConfigureMockMvc(addFilters = false)
+
     void createJob_returns400WhenInvalidBody() throws Exception {
         // Given an empty request (invalid because @NotNull fields are missing)
         JobCreateRequest request = new JobCreateRequest();
 
-        // When/Then
         mockMvc.perform(post("/api/jobs")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request))

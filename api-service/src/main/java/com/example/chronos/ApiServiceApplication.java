@@ -3,7 +3,9 @@ package com.example.chronos;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
+@EnableScheduling  // ← ADD THIS - enables scheduled tasks
 @SpringBootApplication(exclude = { LiquibaseAutoConfiguration.class })
 public class ApiServiceApplication {
 

@@ -1,0 +1,664 @@
+{
+  "info": {
+    "name": "Chronos Job Scheduler API",
+    "description": "Complete API collection for testing Chronos Job Scheduler",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Monitoring",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/health",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "health"]
+            }
+          }
+        },
+        {
+          "name": "Application Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/info",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "info"]
+            }
+          }
+        },
+        {
+          "name": "Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/actuator/metrics",
+              "host": ["{{base_url}}"],
+              "path": ["actuator", "metrics"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Job Management",
+      "item": [
+        {
+          "name": "Create Job - Daily Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"daily-sales-report\",\n  \"description\": \"Generate daily sales report\",\n  \"cronExpression\": \"0 9 * * *\",\n  \"enabled\": true,\n  \"retryPolicy\": {\n    \"maxRetries\": 3,\n    \"retryDelay\": 60000\n  },\n  \"payload\": {\n    \"reportType\": \"sales\",\n    \"format\": \"PDF\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Create Job - Hourly Backup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"hourly-database-backup\",\n  \"description\": \"Backup database every hour\",\n  \"cronExpression\": \"0 * * * *\",\n  \"enabled\": true,\n  \"retryPolicy\": {\n    \"maxRetries\": 2,\n    \"retryDelay\": 30000\n  },\n  \"payload\": {\n    \"database\": \"postgres\",\n    \"location\": \"s3://backups\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Create Job - Weekly Cleanup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"weekly-log-cleanup\",\n  \"description\": \"Clean up old logs every Sunday\",\n  \"cronExpression\": \"0 2 * * 0\",\n  \"enabled\": true,\n  \"retryPolicy\": {\n    \"maxRetries\": 1,\n    \"retryDelay\": 10000\n  },\n  \"payload\": {\n    \"olderThan\": \"30days\",\n    \"logType\": \"application\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Create Job - Every 5 Minutes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"health-check-monitor\",\n  \"description\": \"Monitor system health every 5 minutes\",\n  \"cronExpression\": \"*/5 * * * *\",\n  \"enabled\": true,\n  \"retryPolicy\": {\n    \"maxRetries\": 3,\n    \"retryDelay\": 5000\n  },\n  \"payload\": {\n    \"endpoints\": [\"api\", \"database\", \"cache\"],\n    \"alertOnFailure\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Get All Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"]
+            }
+          }
+        },
+        {
+          "name": "Get Job by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Job",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"daily-sales-report-updated\",\n  \"description\": \"Generate daily sales report (Updated)\",\n  \"cronExpression\": \"0 10 * * *\",\n  \"enabled\": true,\n  \"retryPolicy\": {\n    \"maxRetries\": 5,\n    \"retryDelay\": 120000\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1"]
+            }
+          }
+        },
+        {
+          "name": "Enable Job",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/enable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "enable"]
+            }
+          }
+        },
+        {
+          "name": "Disable Job",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/disable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "disable"]
+            }
+          }
+        },
+        {
+          "name": "Delete Job",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Job Execution",
+      "item": [
+        {
+          "name": "Trigger Job Immediately",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/trigger",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "trigger"]
+            }
+          }
+        },
+        {
+          "name": "Get Job Executions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/executions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "executions"]
+            }
+          }
+        },
+        {
+          "name": "Get Execution by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get All Executions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions"]
+            }
+          }
+        },
+        {
+          "name": "Get Failed Executions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions?status=FAILED",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "FAILED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Running Executions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions?status=RUNNING",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "RUNNING"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Retry Failed Execution",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions/1/retry",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions", "1", "retry"]
+            }
+          }
+        },
+        {
+          "name": "Cancel Running Execution",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions/1/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions", "1", "cancel"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Job Statistics",
+      "item": [
+        {
+          "name": "Get Job Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Get System Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/statistics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "statistics"]
+            }
+          }
+        },
+        {
+          "name": "Get Success Rate",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/success-rate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "success-rate"]
+            }
+          }
+        },
+        {
+          "name": "Get Average Execution Time",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/avg-execution-time",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "avg-execution-time"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Job Search & Filter",
+      "item": [
+        {
+          "name": "Search Jobs by Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs?name=daily",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "daily"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Enabled Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs?enabled=true",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                {
+                  "key": "enabled",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Disabled Jobs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs?enabled=false",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                {
+                  "key": "enabled",
+                  "value": "false"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Jobs with Pagination",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs?page=0&size=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Jobs Sorted by Name",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs?sort=name,asc",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs"],
+              "query": [
+                {
+                  "key": "sort",
+                  "value": "name,asc"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bulk Operations",
+      "item": [
+        {
+          "name": "Create Multiple Jobs",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"email-campaign-1\",\n    \"description\": \"Send marketing emails\",\n    \"cronExpression\": \"0 8 * * 1\",\n    \"enabled\": true\n  },\n  {\n    \"name\": \"email-campaign-2\",\n    \"description\": \"Send follow-up emails\",\n    \"cronExpression\": \"0 8 * * 3\",\n    \"enabled\": true\n  }\n]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "bulk"]
+            }
+          }
+        },
+        {
+          "name": "Enable Multiple Jobs",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/bulk/enable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "bulk", "enable"]
+            }
+          }
+        },
+        {
+          "name": "Disable Multiple Jobs",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/bulk/disable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "bulk", "disable"]
+            }
+          }
+        },
+        {
+          "name": "Delete Multiple Jobs",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1, 2, 3]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/bulk",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "bulk"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Advanced Features",
+      "item": [
+        {
+          "name": "Get Next Execution Time",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/1/next-execution",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "1", "next-execution"]
+            }
+          }
+        },
+        {
+          "name": "Validate Cron Expression",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cronExpression\": \"0 9 * * *\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/validate-cron",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "validate-cron"]
+            }
+          }
+        },
+        {
+          "name": "Get Execution Logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/executions/1/logs",
+              "host": ["{{base_url}}"],
+              "path": ["api", "executions", "1", "logs"]
+            }
+          }
+        },
+        {
+          "name": "Export Jobs as JSON",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/jobs/export",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "export"]
+            }
+          }
+        },
+        {
+          "name": "Import Jobs from JSON",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  {\n    \"name\": \"imported-job\",\n    \"cronExpression\": \"0 12 * * *\",\n    \"enabled\": true\n  }\n]"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/jobs/import",
+              "host": ["{{base_url}}"],
+              "path": ["api", "jobs", "import"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

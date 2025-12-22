@@ -1,125 +1,127 @@
 package com.example.chronos.domain;
 
-import com.example.chronos.domain.enums.HttpMethodType;
 import com.example.chronos.domain.enums.JobStatus;
+import com.example.chronos.domain.enums.HttpMethodType;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.time.Instant;
-import java.util.UUID;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "jobs")
+@Table(name = "jobs", indexes = {
+        @Index(name = "idx_jobs_status", columnList = "status"),
+        @Index(name = "idx_jobs_next_run", columnList = "next_run_at"),
+        @Index(name = "idx_jobs_external_id", columnList = "external_id")
+})
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Job {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, updatable = false)
-    private String externalId = UUID.randomUUID().toString();
+    @Column(name = "external_id", unique = true, nullable = false)
+    private String externalId;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, length = 1000)
+    @Column(name = "target_url", nullable = false)
     private String targetUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 10)
+    @Column(name = "http_method", nullable = false)
     private HttpMethodType httpMethod;
 
-    @Column(length = 4000)
+    @Column(name = "request_body", columnDefinition = "TEXT")
     private String requestBody;
 
-    @Column(length = 1000)
-    private String headersJson;
-
-    @Column(length = 255)
+    @Column(name = "cron_expression")
     private String cronExpression;
 
-    private Instant nextRunAt;
-
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private JobStatus status = JobStatus.PENDING;
+    @Column(nullable = false)
+    @Builder.Default
+    private JobStatus status = JobStatus.ACTIVE;
 
-    private int priority = 5;
-    private int timeoutSeconds = 30;
-    private int maxRetries = 3;
-    private int retryCount = 0;
-    private long backoffSeconds = 30;
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer priority = 5;
+
+    @Column(name = "timeout_seconds")
+    @Builder.Default
+    private Integer timeoutSeconds = 30;
+
+    @Column(name = "max_retries")
+    @Builder.Default
+    private Integer maxRetries = 3;
+
+    @Column(name = "retry_count")
+    @Builder.Default
+    private Integer retryCount = 0;
+
+    @Column(name = "backoff_seconds")
+    @Builder.Default
+    private Long backoffSeconds = 60L;
+
+    @Column(name = "webhook_url")
     private String webhookUrl;
 
-    private Instant createdAt = Instant.now();
-    private Instant updatedAt = Instant.now();
-    private String createdBy;
+    @Column(name = "next_run_at")
+    private LocalDateTime nextRunAt;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
-    @PreUpdate
-    void onUpdate() {
-        this.updatedAt = Instant.now();
+    @Column(name = "created_by")
+    private String createdBy;
+
+    @Column(name = "total_runs")
+    @Builder.Default
+    private Integer totalRuns = 0;
+
+    @Column(name = "successful_runs")
+    @Builder.Default
+    private Integer successfulRuns = 0;
+
+    @Column(name = "failed_runs")
+    @Builder.Default
+    private Integer failedRuns = 0;
+
+    @Column(name = "avg_duration_ms")
+    @Builder.Default
+    private Long avgDurationMs = 0L;
+
+    @Column(name = "consecutive_failures")
+    @Builder.Default
+    private Integer consecutiveFailures = 0;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        if (status == null) {
+            status = JobStatus.ACTIVE;
+        }
+        if (externalId == null) {
+            externalId = java.util.UUID.randomUUID().toString();
+        }
     }
 
-    // getters and setters omitted for brevity, generate all
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-
-    public String getExternalId() { return externalId; }
-    public void setExternalId(String externalId) { this.externalId = externalId; }
-
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-
-    public String getTargetUrl() { return targetUrl; }
-    public void setTargetUrl(String targetUrl) { this.targetUrl = targetUrl; }
-
-    public HttpMethodType getHttpMethod() { return httpMethod; }
-    public void setHttpMethod(HttpMethodType httpMethod) { this.httpMethod = httpMethod; }
-
-    public String getRequestBody() { return requestBody; }
-    public void setRequestBody(String requestBody) { this.requestBody = requestBody; }
-
-    public String getHeadersJson() { return headersJson; }
-    public void setHeadersJson(String headersJson) { this.headersJson = headersJson; }
-
-    public String getCronExpression() { return cronExpression; }
-    public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
-
-    public Instant getNextRunAt() { return nextRunAt; }
-    public void setNextRunAt(Instant nextRunAt) { this.nextRunAt = nextRunAt; }
-
-    public JobStatus getStatus() { return status; }
-    public void setStatus(JobStatus status) { this.status = status; }
-
-    public int getPriority() { return priority; }
-    public void setPriority(int priority) { this.priority = priority; }
-
-    public int getTimeoutSeconds() { return timeoutSeconds; }
-    public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
-
-    public int getMaxRetries() { return maxRetries; }
-    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
-
-    public int getRetryCount() { return retryCount; }
-    public void setRetryCount(int retryCount) { this.retryCount = retryCount; }
-
-    public long getBackoffSeconds() { return backoffSeconds; }
-    public void setBackoffSeconds(long backoffSeconds) { this.backoffSeconds = backoffSeconds; }
-
-    public String getWebhookUrl() { return webhookUrl; }
-    public void setWebhookUrl(String webhookUrl) { this.webhookUrl = webhookUrl; }
-
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
-
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
-
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
-
-    public String getLastError() { return lastError; }
-    public void setLastError(String lastError) { this.lastError = lastError; }
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

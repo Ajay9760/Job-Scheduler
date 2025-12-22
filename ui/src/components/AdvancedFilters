@@ -1,0 +1,290 @@
+import React, { useState } from 'react';
+
+const AdvancedFilters = ({ onApply, onReset }) => {
+  const [filters, setFilters] = useState({
+    status: [],
+    scheduleType: '',
+    dateFrom: '',
+    dateTo: '',
+    searchTerm: '',
+    sortBy: 'createdAt',
+    sortDir: 'DESC'
+  });
+
+  const [showFilters, setShowFilters] = useState(false);
+  const [savedFilters, setSavedFilters] = useState([]);
+  const [filterName, setFilterName] = useState('');
+
+  const handleFilterChange = (field, value) => {
+    setFilters({ ...filters, [field]: value });
+  };
+
+  const handleStatusToggle = (status) => {
+    const newStatuses = filters.status.includes(status)
+      ? filters.status.filter(s => s !== status)
+      : [...filters.status, status];
+    setFilters({ ...filters, status: newStatuses });
+  };
+
+  const applyFilters = () => {
+    if (onApply) onApply(filters);
+    setShowFilters(false);
+  };
+
+  const resetFilters = () => {
+    const defaultFilters = {
+      status: [],
+      scheduleType: '',
+      dateFrom: '',
+      dateTo: '',
+      searchTerm: '',
+      sortBy: 'createdAt',
+      sortDir: 'DESC'
+    };
+    setFilters(defaultFilters);
+    if (onReset) onReset();
+  };
+
+  const saveCurrentFilter = () => {
+    if (!filterName) {
+      alert('Please enter a name for this filter');
+      return;
+    }
+
+    const newFilter = {
+      name: filterName,
+      filters: { ...filters },
+      createdAt: new Date().toISOString()
+    };
+
+    setSavedFilters([...savedFilters, newFilter]);
+    setFilterName('');
+    alert('Filter saved successfully!');
+  };
+
+  const loadSavedFilter = (savedFilter) => {
+    setFilters(savedFilter.filters);
+    if (onApply) onApply(savedFilter.filters);
+  };
+
+  const deleteSavedFilter = (index) => {
+    setSavedFilters(savedFilters.filter((_, i) => i !== index));
+  };
+
+  const activeFilterCount =
+    filters.status.length +
+    (filters.scheduleType ? 1 : 0) +
+    (filters.dateFrom ? 1 : 0) +
+    (filters.searchTerm ? 1 : 0);
+
+  return (
+    <div className="bg-white rounded-lg shadow-md">
+      {/* Filter Toggle Button */}
+      <div className="p-4 border-b border-gray-200">
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center justify-between w-full"
+        >
+          <div className="flex items-center space-x-3">
+            <span className="text-lg font-semibold text-gray-800">🔍 Advanced Filters</span>
+            {activeFilterCount > 0 && (
+              <span className="px-2 py-1 bg-blue-600 text-white text-xs rounded-full">
+                {activeFilterCount} active
+              </span>
+            )}
+          </div>
+          <span className="text-gray-500">
+            {showFilters ? '▲' : '▼'}
+          </span>
+        </button>
+      </div>
+
+      {/* Filter Panel */}
+      {showFilters && (
+        <div className="p-6 space-y-6">
+          {/* Search */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search Jobs
+            </label>
+            <input
+              type="text"
+              value={filters.searchTerm}
+              onChange={(e) => handleFilterChange('searchTerm', e.target.value)}
+              placeholder="Search by name or description..."
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Status Checkboxes */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Status
+            </label>
+            <div className="grid grid-cols-3 gap-3">
+              {['ACTIVE', 'PAUSED', 'INACTIVE'].map((status) => (
+                <label
+                  key={status}
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.status.includes(status)}
+                    onChange={() => handleStatusToggle(status)}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{status}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Schedule Type */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Schedule Type
+            </label>
+            <select
+              value={filters.scheduleType}
+              onChange={(e) => handleFilterChange('scheduleType', e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="">All Types</option>
+              <option value="CRON">CRON</option>
+              <option value="INTERVAL">Interval</option>
+              <option value="ONCE">Once</option>
+            </select>
+          </div>
+
+          {/* Date Range */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Created From
+              </label>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(e) => handleFilterChange('dateFrom', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Created To
+              </label>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(e) => handleFilterChange('dateTo', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          {/* Sort Options */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Sort By
+              </label>
+              <select
+                value={filters.sortBy}
+                onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="createdAt">Created Date</option>
+                <option value="name">Name</option>
+                <option value="status">Status</option>
+                <option value="nextRunAt">Next Run</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Direction
+              </label>
+              <select
+                value={filters.sortDir}
+                onChange={(e) => handleFilterChange('sortDir', e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="ASC">Ascending</option>
+                <option value="DESC">Descending</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
+            <button
+              onClick={applyFilters}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              ✓ Apply Filters
+            </button>
+            <button
+              onClick={resetFilters}
+              className="flex-1 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition"
+            >
+              ✗ Reset
+            </button>
+          </div>
+
+          {/* Save Filter Preset */}
+          <div className="pt-4 border-t border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Save Filter Preset
+            </label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+                placeholder="Enter preset name..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={saveCurrentFilter}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+              >
+                💾 Save
+              </button>
+            </div>
+          </div>
+
+          {/* Saved Filters */}
+          {savedFilters.length > 0 && (
+            <div className="pt-4 border-t border-gray-200">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Saved Presets
+              </label>
+              <div className="space-y-2">
+                {savedFilters.map((savedFilter, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  >
+                    <button
+                      onClick={() => loadSavedFilter(savedFilter)}
+                      className="flex-1 text-left text-sm font-medium text-gray-800 hover:text-blue-600"
+                    >
+                      {savedFilter.name}
+                    </button>
+                    <button
+                      onClick={() => deleteSavedFilter(index)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdvancedFilters;

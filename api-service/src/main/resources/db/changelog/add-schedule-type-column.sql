@@ -1,0 +1,4 @@
+
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(20) NOT NULL DEFAULT 'CRON';
+
+COMMENT ON COLUMN jobs.schedule_type IS 'Type of schedule: CRON, INTERVAL, or ONCE';

@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -19,6 +21,8 @@ import java.util.stream.Collectors;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtTokenUtil jwtTokenUtil;
     private final UserRepository userRepository;
@@ -34,61 +38,73 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
 
         String requestPath = request.getRequestURI();
-        // Skip logs for health checks to keep console clean
-        if (!requestPath.equals("/actuator/health")) {
-            System.out.println(">>> Filtering Request: " + request.getMethod() + " " + requestPath);
-        }
 
         // 1. Skip validation for public endpoints
-        if (requestPath.startsWith("/api/auth/") ||
-                requestPath.startsWith("/actuator/") ||
-                requestPath.startsWith("/error") ||
-                requestPath.startsWith("/h2-console/")) {
+        if (isPublicEndpoint(requestPath)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // 2. Check if Header exists
+        // 2. If no Bearer header, DO NOT block – just continue the chain.
+        //    This allows tests (and any other mechanism) that set the SecurityContext
+        //    to still work without a JWT header.
         if (header == null || !header.startsWith("Bearer ")) {
-            System.out.println("❌ No valid Auth Header found. Header value: " + header);
+            if (!"OPTIONS".equals(request.getMethod())) {
+                logger.warn("No valid Auth Header found for endpoint: {}. Proceeding without JWT auth.", requestPath);
+            }
             filterChain.doFilter(request, response);
             return;
         }
 
+        // 3. We have a Bearer token – validate it
         String token = header.substring(7);
         try {
             String username = jwtTokenUtil.extractUsername(token);
-            System.out.println("🔍 Extracted Username from Token: " + username);
+            logger.debug("Authenticating user via JWT: {}", username);
 
             if (username != null && jwtTokenUtil.validateToken(token)) {
-                // 3. Check if user exists in DB
                 User user = userRepository.findByUsername(username).orElse(null);
 
                 if (user != null) {
-                    System.out.println("✅ User found in DB. Roles: " + user.getRoles());
+                    logger.debug("User authenticated successfully: {} with roles: {}", username, user.getRoles());
 
                     var authorities = Arrays.stream(user.getRoles().split(","))
                             .map(String::trim)
                             .filter(r -> !r.isEmpty())
-                            .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
+                            .map(SimpleGrantedAuthority::new)  // ✅ FIXED: Don't add ROLE_ prefix (already in DB)
                             .collect(Collectors.toList());
 
                     var auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(auth);
-                    System.out.println("🔓 SecurityContext set successfully for: " + username);
                 } else {
-                    System.out.println("⛔ Token is valid, but User '" + username + "' was NOT found in the Database! (Did you reset the DB?)");
+                    logger.warn("Token is valid, but user '{}' was not found in the database", username);
+                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found");
+                    return;
                 }
             } else {
-                System.out.println("⚠️ Token validation failed (Expired or Invalid signature)");
+                logger.warn("Token validation failed for user: {}", username);
+                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
+                return;
             }
         } catch (Exception e) {
-            System.err.println("💥 JWT Authentication error: " + e.getMessage());
+            logger.error("JWT Authentication error: {}", e.getMessage(), e);
             SecurityContextHolder.clearContext();
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication failed: " + e.getMessage());
+            return;
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isPublicEndpoint(String path) {
+        return path.startsWith("/api/auth/") ||
+                path.startsWith("/auth/") ||
+                path.startsWith("/actuator/") ||
+                path.startsWith("/error") ||
+                path.startsWith("/h2-console/") ||
+                path.startsWith("/swagger-ui/") ||
+                path.startsWith("/v3/api-docs/");
     }
 }

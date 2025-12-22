@@ -18,6 +18,10 @@ public class User {
     @Column(nullable = false, length = 200)
     private String roles; // comma-separated
 
+    // Transient field - not stored in database, only used for registration
+    @Transient
+    private String password;
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -29,4 +33,8 @@ public class User {
 
     public String getRoles() { return roles; }
     public void setRoles(String roles) { this.roles = roles; }
+
+    // Getter and setter for the transient password field
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
 }

@@ -6,6 +6,7 @@ public class JobUpdateRequest {
     private String targetUrl;
     private String cronExpression;
     private Integer priority;
+    private String httpMethod;
     private Integer timeoutSeconds;
     private Integer maxRetries;
     private Long backoffSeconds;
@@ -34,4 +35,12 @@ public class JobUpdateRequest {
 
     public String getWebhookUrl() { return webhookUrl; }
     public void setWebhookUrl(String webhookUrl) { this.webhookUrl = webhookUrl; }
+
+    public String getHttpMethod() {
+        return httpMethod;
+    }
+
+    public void setHttpMethod(String httpMethod) {
+        this.httpMethod = httpMethod;
+    }
 }

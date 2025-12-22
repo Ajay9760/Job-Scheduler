@@ -1,77 +1,79 @@
 package com.example.chronos.dto.job;
 
-import com.example.chronos.domain.enums.HttpMethodType;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Valid
+import java.util.Map;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class JobCreateRequest {
 
-    private String headers;
-
-    @NotBlank(message = "Name is required")
-    @Size(max = 255)
+    @NotBlank(message = "Job name is required")
     private String name;
 
-    @Pattern(
-            regexp = "https?://.+",
-            message = "targetUrl must be a valid HTTP/HTTPS URL"
-    )
-    @NotBlank
-    @Size(max = 1000)
-    private String targetUrl;
+    private String description;
 
-    @NotNull
-    private HttpMethodType httpMethod;
+    @NotBlank(message = "Target URL is required")
+    private String httpUrl; // Changed from targetUrl to httpUrl
 
-    @Size(max = 4000)
-    private String requestBody;
+    @NotBlank(message = "HTTP method is required")
+    private String httpMethod;
 
-    @Min(0) @Max(10)
-    private int priority = 5;
+    private Map<String, String> httpHeaders;
 
-    @Min(1)
-    private int timeoutSeconds = 30;
+    private String httpBody; // Changed from requestBody to httpBody
 
-    @Min(0)
-    private int maxRetries = 3;
+    @NotBlank(message = "Schedule type is required")
+    private String scheduleType;
 
-    @Min(0)
-    private long backoffSeconds = 30;
-
-    @Size(max = 1000)
-    private String webhookUrl;
-
+    @NotBlank(message = "CRON expression is required")
     private String cronExpression;
 
-    // getters and setters
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    @Min(value = 1, message = "Priority must be at least 1")
+    @Max(value = 10, message = "Priority must be at most 10")
+    private Integer priority;
 
-    public String getTargetUrl() { return targetUrl; }
-    public void setTargetUrl(String targetUrl) { this.targetUrl = targetUrl; }
+    @Min(value = 1, message = "Timeout must be at least 1 second")
+    private Integer timeoutSeconds;
 
-    public HttpMethodType getHttpMethod() { return httpMethod; }
-    public void setHttpMethod(HttpMethodType httpMethod) { this.httpMethod = httpMethod; }
+    @Min(value = 0, message = "Max retries cannot be negative")
+    private Integer maxRetries;
 
-    public String getRequestBody() { return requestBody; }
-    public void setRequestBody(String requestBody) { this.requestBody = requestBody; }
+    @Min(value = 1, message = "Backoff strategy must be at least 1 second")
+    private String backoffStrategy;
+    private String webhookUrl;
 
-    public int getPriority() { return priority; }
-    public void setPriority(int priority) { this.priority = priority; }
+    public String getTargetUrl() {
+        return httpUrl;
+    }
 
-    public int getTimeoutSeconds() { return timeoutSeconds; }
-    public void setTimeoutSeconds(int timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+    public void setTargetUrl(String targetUrl) {
+        this.httpUrl = targetUrl;
+    }
 
-    public int getMaxRetries() { return maxRetries; }
-    public void setMaxRetries(int maxRetries) { this.maxRetries = maxRetries; }
+    public String getRequestBody() {
+        return httpBody;
+    }
 
-    public long getBackoffSeconds() { return backoffSeconds; }
-    public void setBackoffSeconds(long backoffSeconds) { this.backoffSeconds = backoffSeconds; }
+    public void setRequestBody(String requestBody) {
+        this.httpBody = requestBody;
+    }
 
-    public String getWebhookUrl() { return webhookUrl; }
-    public void setWebhookUrl(String webhookUrl) { this.webhookUrl = webhookUrl; }
+    public Integer getBackoffSeconds() {
+        return backoffStrategy != null ?
+                ("EXPONENTIAL".equals(backoffStrategy) ? 2 : 10) : null;
+    }
 
-    public String getCronExpression() { return cronExpression; }
-    public void setCronExpression(String cronExpression) { this.cronExpression = cronExpression; }
+    public void setBackoffSeconds(Integer backoffSeconds) {
+        this.backoffStrategy = backoffSeconds != null && backoffSeconds > 5 ? "LINEAR" : "EXPONENTIAL";
+    }
 }

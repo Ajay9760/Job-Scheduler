@@ -1,0 +1,24 @@
+-- Migration: Create job_logs table for detailed execution logging
+CREATE TABLE IF NOT EXISTS job_logs (
+    id BIGSERIAL PRIMARY KEY,
+    instance_id BIGINT NOT NULL,
+    job_id BIGINT NOT NULL,
+    log_level VARCHAR(20) NOT NULL DEFAULT 'INFO',
+    message TEXT NOT NULL,
+    details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_instance FOREIGN KEY (instance_id) REFERENCES job_instances(id) ON DELETE CASCADE,
+    CONSTRAINT fk_job FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE
+);
+
+-- Indexes for performance
+CREATE INDEX idx_job_logs_instance_id ON job_logs(instance_id);
+CREATE INDEX idx_job_logs_job_id ON job_logs(job_id);
+CREATE INDEX idx_job_logs_level ON job_logs(log_level);
+CREATE INDEX idx_job_logs_created_at ON job_logs(created_at DESC);
+CREATE INDEX idx_job_logs_details ON job_logs USING gin(details);
+
+-- Comment for documentation
+COMMENT ON TABLE job_logs IS 'Stores detailed execution logs for each job instance';
+COMMENT ON COLUMN job_logs.log_level IS 'Log levels: DEBUG, INFO, WARN, ERROR';
+COMMENT ON COLUMN job_logs.details IS 'Additional metadata stored as JSON';

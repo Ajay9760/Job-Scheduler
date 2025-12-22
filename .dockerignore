@@ -1,0 +1,50 @@
+# -----------------------------
+# Git
+# -----------------------------
+.git
+.gitignore
+
+# -----------------------------
+# IDE / Editor files
+# -----------------------------
+.idea
+.vscode
+*.iml
+
+# -----------------------------
+# OS files
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# Maven / Java build artifacts
+# -----------------------------
+**/target
+**/out
+**/*.log
+
+# -----------------------------
+# Node / frontend (if any later)
+# -----------------------------
+node_modules
+dist
+build
+
+# -----------------------------
+# Test & reports
+# -----------------------------
+**/surefire-reports
+**/failsafe-reports
+**/test-results
+
+# -----------------------------
+# Docker files that should NOT go into image
+# -----------------------------
+Dockerfile
+docker-compose.yml
+
+# -----------------------------
+# Kubernetes manifests
+# -----------------------------
+k8s

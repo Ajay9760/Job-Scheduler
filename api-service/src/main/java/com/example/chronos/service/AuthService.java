@@ -21,6 +21,19 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    public User register(User user) {
+        // Encode the password before saving
+        user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
+
+        // ✅ Assign default role if not provided
+        if (user.getRoles() == null || user.getRoles().isEmpty()) {
+            user.setRoles("ROLE_USER"); // Default role for new users
+        }
+
+        // Save and return the user
+        return userRepository.save(user);
+    }
+
     public String login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("Invalid credentials"));

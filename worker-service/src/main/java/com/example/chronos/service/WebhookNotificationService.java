@@ -40,7 +40,7 @@ public class WebhookNotificationService {
             webClient
                     .post()
                     .uri(job.getWebhookUrl())
-                    .contentType(MediaType.APPLICATION_JSON)   // ✅ this is what the test expects
+                    .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(Void.class)

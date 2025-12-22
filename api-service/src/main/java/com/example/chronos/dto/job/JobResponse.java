@@ -4,6 +4,7 @@ import com.example.chronos.domain.enums.HttpMethodType;
 import com.example.chronos.domain.enums.JobStatus;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 public class JobResponse {
 
@@ -20,9 +21,9 @@ public class JobResponse {
     private int retryCount;
     private long backoffSeconds;
     private String webhookUrl;
-    private Instant nextRunAt;
-    private Instant createdAt;
-    private Instant updatedAt;
+    private LocalDateTime nextRunAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private String lastError;
 
     // getters and setters
@@ -65,14 +66,14 @@ public class JobResponse {
     public String getWebhookUrl() { return webhookUrl; }
     public void setWebhookUrl(String webhookUrl) { this.webhookUrl = webhookUrl; }
 
-    public Instant getNextRunAt() { return nextRunAt; }
-    public void setNextRunAt(Instant nextRunAt) { this.nextRunAt = nextRunAt; }
+    public LocalDateTime getNextRunAt() { return nextRunAt; }
+    public void setNextRunAt(Instant nextRunAt) { this.nextRunAt = LocalDateTime.from(nextRunAt); }
 
-    public Instant getCreatedAt() { return createdAt; }
-    public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Instant createdAt) { this.createdAt = LocalDateTime.from(createdAt); }
 
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public LocalDateTime getUpdatedAt() { return updatedAt; }
+    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = LocalDateTime.from(updatedAt); }
 
     public String getLastError() { return lastError; }
     public void setLastError(String lastError) { this.lastError = lastError; }
