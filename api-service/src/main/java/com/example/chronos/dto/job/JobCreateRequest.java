@@ -1,12 +1,20 @@
 package com.example.chronos.dto.job;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class JobCreateRequest {
 
     @NotBlank(message = "Job name is required")
@@ -20,27 +28,30 @@ public class JobCreateRequest {
     @NotBlank(message = "HTTP method is required")
     private String httpMethod;
 
-    private Map<String, String> httpHeaders; // NEW FIELD
+    private Map<String, String> httpHeaders;
 
     private String httpBody; // Changed from requestBody to httpBody
 
     @NotBlank(message = "Schedule type is required")
-    private String scheduleType; // NEW FIELD (CRON, INTERVAL, ONCE)
+    private String scheduleType;
 
     @NotBlank(message = "CRON expression is required")
     private String cronExpression;
 
+    @Min(value = 1, message = "Priority must be at least 1")
+    @Max(value = 10, message = "Priority must be at most 10")
     private Integer priority;
 
+    @Min(value = 1, message = "Timeout must be at least 1 second")
     private Integer timeoutSeconds;
 
+    @Min(value = 0, message = "Max retries cannot be negative")
     private Integer maxRetries;
 
-    private String backoffStrategy; // Changed from backoffSeconds to backoffStrategy
-
+    @Min(value = 1, message = "Backoff strategy must be at least 1 second")
+    private String backoffStrategy;
     private String webhookUrl;
 
-    // For backward compatibility, keep old getters/setters
     public String getTargetUrl() {
         return httpUrl;
     }
@@ -63,7 +74,6 @@ public class JobCreateRequest {
     }
 
     public void setBackoffSeconds(Integer backoffSeconds) {
-        // Convert to strategy
         this.backoffStrategy = backoffSeconds != null && backoffSeconds > 5 ? "LINEAR" : "EXPONENTIAL";
     }
 }

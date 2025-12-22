@@ -51,9 +51,15 @@ public class JobLogService {
                         cb.equal(root.get("logLevel"), level)
                 ),
                 pageable)
-                : logRepository.findByJobId(jobId, pageable);
+                : logRepository.findByJob_Id(jobId, pageable);
 
         return mapToPageResponse(page);
+    }
+    public Page<JobLog> findByJob_Id(Long jobId, JobLog.LogLevel level, Pageable pageable) {
+        if (level != null) {
+            return logRepository.findByJob_IdAndLogLevel(jobId, level, pageable);
+        }
+        return logRepository.findByJob_Id(jobId, pageable);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.example.chronos.dto.job;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -23,8 +24,9 @@ public class ApiResponse<T> {
         return response;
     }
 
+    // Add this overloaded method
     public static <T> ApiResponse<T> success(T data) {
-        return success(data, null);
+        return success(data, "Success");
     }
 
     public static <T> ApiResponse<T> error(String error) {

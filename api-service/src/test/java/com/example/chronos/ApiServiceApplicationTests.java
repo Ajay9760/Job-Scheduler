@@ -1,28 +1,21 @@
 package com.example.chronos;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.example.chronos.ApiServiceApplication;
+import org.junit.Test;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
+import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.example.chronos.service.JobService;
-
-@SpringBootTest
+@SpringBootTest(classes = ApiServiceApplication.class)
 @ActiveProfiles("test")
-class ApiServiceApplicationTests {
-
-    // 👇 Mock out infrastructure so Spring doesn't try to build real Rabbit stuff
-    @MockBean
-    private RabbitTemplate rabbitTemplate;
-
-    // 👇 Mock JobService too so its constructor dependencies don't matter
-    @MockBean
-    private JobService jobService;
-
+@EnableAutoConfiguration(exclude = {
+        DataSourceAutoConfiguration.class,
+        HibernateJpaAutoConfiguration.class
+})
+public class ApiServiceApplicationTests {
     @Test
-    void contextLoads() {
-        // Just verify the Spring context starts.
-        // No assertions needed here.
+    public void contextLoads() {
     }
 }

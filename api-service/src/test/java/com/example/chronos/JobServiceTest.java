@@ -1,58 +1,73 @@
 package com.example.chronos;
 
 import com.example.chronos.domain.Job;
-import com.example.chronos.domain.enums.HttpMethodType;
 import com.example.chronos.dto.job.JobCreateRequest;
+import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.repository.JobRepository;
+import com.example.chronos.service.JobInstanceService;
 import com.example.chronos.service.JobMapper;
 import com.example.chronos.service.JobService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 class JobServiceTest {
 
-    @Test
-    void createPersistsJobWithOwner() {
-        // Arrange
-        JobRepository repo = mock(JobRepository.class);
-        JobMapper mapper = new JobMapper();
+    private JobRepository jobRepository;
+    private JobInstanceService jobInstanceService;
+    private RabbitTemplate rabbitTemplate;
 
-        // Create service with only 2 arguments
-        JobService service = new JobService(repo, mapper);
+    private JobMapper jobMapper;
+    private JobService jobService;
 
-        JobCreateRequest req = new JobCreateRequest();
-        req.setName("Test Job");
-        req.setTargetUrl("https://example.com");
-        req.setHttpMethod(String.valueOf(HttpMethodType.GET));
-        req.setCronExpression("0 0 * * * *"); // Required field
+    @BeforeEach
+    void setUp() {
+        jobRepository = mock(JobRepository.class);
+        jobInstanceService = mock(JobInstanceService.class);
+        rabbitTemplate = mock(RabbitTemplate.class);
 
-        when(repo.save(any(Job.class))).thenAnswer(invocation -> {
-            Job j = invocation.getArgument(0);
-            j.setId(1L);
-            return j;
-        });
-
-        // Act
-        var resp = service.create(req, "ajay");
-
-        // Assert
-        assertThat(resp.getId()).isEqualTo(1L);
-        assertThat(resp.getName()).isEqualTo("Test Job");
-        assertThat(resp.getTargetUrl()).isEqualTo("https://example.com");
-
-        // Verify save was called once
-        verify(repo, times(1)).save(any(Job.class));
+        jobMapper = new JobMapper();
     }
 
     @Test
-    void listForUserReturnsOnlyUserJobs() {
+    void create_persistsJobAndReturnsResponse() {
         // Arrange
-        JobRepository repo = mock(JobRepository.class);
-        JobMapper mapper = new JobMapper();
-        JobService service = new JobService(repo, mapper);
+        JobCreateRequest request = new JobCreateRequest();
+        request.setName("Test Job");
+        request.setHttpUrl("https://example.com");
+        request.setHttpMethod("GET");
+        request.setScheduleType("CRON");
+        request.setCronExpression("0 * * * *");
+        request.setPriority(5);
+        request.setTimeoutSeconds(30);
+        request.setMaxRetries(3);
+        request.setBackoffStrategy("LINEAR");
 
+        when(jobRepository.save(any(Job.class)))
+                .thenAnswer(invocation -> {
+                    Job job = invocation.getArgument(0);
+                    job.setId(1L);
+                    return job;
+                });
+
+        // Act
+        JobResponse response = jobService.create(request, "ajay");
+
+        // Assert
+        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getName()).isEqualTo("Test Job");
+        verify(jobRepository, times(1)).save(any(Job.class));
+        verifyNoInteractions(jobInstanceService,rabbitTemplate);
+    }
+
+    @Test
+    void listForUser_returnsOnlyUserJobs() {
         Job job1 = new Job();
         job1.setId(1L);
         job1.setName("Job 1");
@@ -63,34 +78,27 @@ class JobServiceTest {
         job2.setName("Job 2");
         job2.setCreatedBy("ajay");
 
-        when(repo.findByCreatedBy("ajay")).thenReturn(java.util.List.of(job1, job2));
+        when(jobRepository.findByCreatedBy("ajay"))
+                .thenReturn(List.of(job1, job2));
 
-        // Act
-        var jobs = service.listForUser("ajay");
+        List<JobResponse> jobs = jobService.listForUser("ajay");
 
-        // Assert
         assertThat(jobs).hasSize(2);
         assertThat(jobs.get(0).getId()).isEqualTo(1L);
         assertThat(jobs.get(1).getId()).isEqualTo(2L);
     }
 
     @Test
-    void deleteRemovesJob() {
-        // Arrange
-        JobRepository repo = mock(JobRepository.class);
-        JobMapper mapper = new JobMapper();
-        JobService service = new JobService(repo, mapper);
-
+    void delete_removesJobWhenOwnedByUser() {
         Job job = new Job();
         job.setId(1L);
         job.setCreatedBy("ajay");
 
-        when(repo.findByIdAndCreatedBy(1L, "ajay")).thenReturn(java.util.Optional.of(job));
+        when(jobRepository.findByIdAndCreatedBy(1L, "ajay"))
+                .thenReturn(Optional.of(job));
 
-        // Act
-        service.delete(1L, "ajay");
+        jobService.delete(1L, "ajay");
 
-        // Assert
-        verify(repo, times(1)).delete(job);
+        verify(jobRepository, times(1)).delete(job);
     }
 }

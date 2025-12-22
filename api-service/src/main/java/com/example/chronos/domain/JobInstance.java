@@ -54,6 +54,7 @@ public class JobInstance {
     private String errorMessage;
 
     @Column(name = "retry_count")
+    @Builder.Default
     private Integer retryCount = 0;
 
     @Column(name = "created_at", updatable = false)
@@ -80,6 +81,15 @@ public class JobInstance {
         return job.getMaxRetries();
     }
 
+    public Object getJobName() {
+        return job.getName();
+    }
+
+    public Long getJobId() {
+        return job.getId();
+    }
+
+
     public enum InstanceStatus {
         PENDING,
         RUNNING,
@@ -87,7 +97,8 @@ public class JobInstance {
         FAILED,
         TIMEOUT,
         CANCELLED,
-        RETRY_PENDING, SKIPPED
+        RETRY_PENDING, SKIPPED;
+        public static InstanceStatus COMPLETED;
     }
 
     // Calculate duration if both start and completion times exist

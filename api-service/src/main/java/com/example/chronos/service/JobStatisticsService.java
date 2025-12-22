@@ -8,12 +8,15 @@ import com.example.chronos.repository.JobInstanceRepository;
 import com.example.chronos.repository.JobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -26,20 +29,20 @@ public class JobStatisticsService {
     private final JobInstanceRepository instanceRepository;
 
     /**
-     * Get comprehensive statistics for a job
+     * Get job statistics - Returns Map
      */
     @Transactional(readOnly = true)
-    public JobStatisticsDTO getJobStatistics(Long jobId) {
+    public Map<String, Object> getJobStatistics(Long jobId) {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
 
         var allInstances = instanceRepository
-                .findByJobId(jobId, org.springframework.data.domain.Pageable.unpaged())
+                .findByJob_Id(jobId, Pageable.unpaged())
                 .getContent();
 
         long totalRuns = allInstances.size();
         long successfulRuns = allInstances.stream()
-                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS)
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED)
                 .count();
         long failedRuns = allInstances.stream()
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.FAILED)
@@ -51,33 +54,88 @@ public class JobStatisticsService {
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.RUNNING)
                 .count();
 
-        // Average duration (only successful instances with non-null duration)
+        // Average duration (only completed instances with non-null duration)
         OptionalDouble avgDuration = allInstances.stream()
-                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED
                         && i.getDurationMs() != null)
                 .mapToLong(JobInstance::getDurationMs)
                 .average();
 
         Long avgDurationMs = avgDuration.isPresent() ? (long) avgDuration.getAsDouble() : 0L;
 
-        // Consecutive failures (from latest backwards)
-        int consecutiveFailures = 0;
-        List<JobInstance> sortedByCreated = allInstances.stream()
-                .filter(i -> i.getCreatedAt() != null)
-                .sorted(Comparator.comparing(JobInstance::getCreatedAt))
-                .collect(Collectors.toList());
+        // Success rate
+        double successRate = totalRuns > 0
+                ? (successfulRuns * 100.0 / totalRuns)
+                : 0.0;
 
-        for (int idx = sortedByCreated.size() - 1; idx >= 0; idx--) {
-            JobInstance inst = sortedByCreated.get(idx);
-            if (inst.getStatus() == JobInstance.InstanceStatus.FAILED) {
-                consecutiveFailures++;
-            } else {
-                break;
-            }
+        // Consecutive failures
+        int consecutiveFailures = calculateConsecutiveFailures(allInstances);
+
+        // Build response map
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("jobId", jobId);
+        stats.put("jobName", job.getName());
+        stats.put("totalRuns", totalRuns);
+        stats.put("successfulRuns", successfulRuns);
+        stats.put("failedRuns", failedRuns);
+        stats.put("pendingRuns", pendingRuns);
+        stats.put("runningRuns", runningRuns);
+        stats.put("avgDurationMs", avgDurationMs);
+        stats.put("successRate", String.format("%.2f%%", successRate));
+        stats.put("consecutiveFailures", consecutiveFailures);
+
+        // Add nextRunAt if available
+        if (job.getNextRunAt() != null) {
+            stats.put("nextRunAt", job.getNextRunAt());
         }
 
-        // Build DTO – note: we don't use job.getLastRunAt() etc., because those
-        // fields don't exist on your Job entity. We only fill what we can.
+        // Add last error if available
+        if (job.getLastError() != null) {
+            stats.put("lastErrorMessage", job.getLastError());
+        }
+
+        return stats;
+    }
+
+    /**
+     * Calculate and return comprehensive statistics for a job as DTO
+     */
+    @Transactional(readOnly = true)
+    public JobStatisticsDTO calculateJobStatistics(Long jobId) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+
+        var allInstances = instanceRepository
+                .findByJob_Id(jobId, Pageable.unpaged())
+                .getContent();
+
+        long totalRuns = allInstances.size();
+        long successfulRuns = allInstances.stream()
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED)
+                .count();
+        long failedRuns = allInstances.stream()
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.FAILED)
+                .count();
+        long pendingRuns = allInstances.stream()
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.PENDING)
+                .count();
+        long runningRuns = allInstances.stream()
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.RUNNING)
+                .count();
+
+        // Average duration (only completed instances with non-null duration)
+        OptionalDouble avgDuration = allInstances.stream()
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED
+                        && i.getDurationMs() != null)
+                .mapToLong(JobInstance::getDurationMs)
+                .average();
+
+        Long avgDurationMs = avgDuration.isPresent() ? (long) avgDuration.getAsDouble() : 0L;
+
+        // Consecutive failures
+        int consecutiveFailures = calculateConsecutiveFailures(allInstances);
+
+        // Build DTO
         JobStatisticsDTO stats = JobStatisticsDTO.builder()
                 .jobId(jobId)
                 .jobName(job.getName())
@@ -87,10 +145,8 @@ public class JobStatisticsService {
                 .pendingRuns(pendingRuns)
                 .runningRuns(runningRuns)
                 .avgDurationMs(avgDurationMs)
-                .nextRunAt(job.getNextRunAt() != null
-                        ? LocalDateTime.ofInstant(job.getNextRunAt(), ZoneOffset.UTC)
-                        : null)
-                .lastErrorMessage(job.getLastError())   // reuse Job.lastError field
+                .nextRunAt(job.getNextRunAt())
+                .lastErrorMessage(job.getLastError())
                 .consecutiveFailures(consecutiveFailures)
                 .build();
 
@@ -98,6 +154,28 @@ public class JobStatisticsService {
         stats.formatDuration();
 
         return stats;
+    }
+
+    /**
+     * Helper method to calculate consecutive failures
+     */
+    private int calculateConsecutiveFailures(List<JobInstance> instances) {
+        int consecutiveFailures = 0;
+
+        List<JobInstance> sortedByCreated = instances.stream()
+                .filter(i -> i.getCreatedAt() != null)
+                .sorted(Comparator.comparing(JobInstance::getCreatedAt).reversed())
+                .collect(Collectors.toList());
+
+        for (JobInstance inst : sortedByCreated) {
+            if (inst.getStatus() == JobInstance.InstanceStatus.FAILED) {
+                consecutiveFailures++;
+            } else {
+                break;
+            }
+        }
+
+        return consecutiveFailures;
     }
 
     /**
@@ -124,10 +202,11 @@ public class JobStatisticsService {
         // Last 24 hours stats
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
         long executions24h = allInstances.stream()
-                .filter(i -> i.getCreatedAt().isAfter(last24Hours))
+                .filter(i -> i.getCreatedAt() != null && i.getCreatedAt().isAfter(last24Hours))
                 .count();
         long failures24h = allInstances.stream()
-                .filter(i -> i.getCreatedAt().isAfter(last24Hours)
+                .filter(i -> i.getCreatedAt() != null
+                        && i.getCreatedAt().isAfter(last24Hours)
                         && i.getStatus() == JobInstance.InstanceStatus.FAILED)
                 .count();
 
@@ -142,7 +221,7 @@ public class JobStatisticsService {
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getJobHealth(Long jobId) {
-        JobStatisticsDTO stats = getJobStatistics(jobId);
+        JobStatisticsDTO stats = calculateJobStatistics(jobId);
 
         Map<String, Object> health = new HashMap<>();
         health.put("successRate", stats.getSuccessRate());
@@ -174,7 +253,7 @@ public class JobStatisticsService {
                     List<JobInstance> dayInstances = entry.getValue();
                     long total = dayInstances.size();
                     long success = dayInstances.stream()
-                            .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS)
+                            .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED)
                             .count();
                     long failed = dayInstances.stream()
                             .filter(i -> i.getStatus() == JobInstance.InstanceStatus.FAILED)
@@ -242,11 +321,11 @@ public class JobStatisticsService {
     @Transactional(readOnly = true)
     public Map<String, Object> getPerformanceMetrics(Long jobId) {
         var instances = instanceRepository
-                .findByJobId(jobId, org.springframework.data.domain.Pageable.unpaged())
+                .findByJob_Id(jobId, Pageable.unpaged())
                 .getContent();
 
         var successfulInstances = instances.stream()
-                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS && i.getDurationMs() != null)
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED && i.getDurationMs() != null)
                 .collect(Collectors.toList());
 
         Map<String, Object> metrics = new HashMap<>();
@@ -260,6 +339,11 @@ public class JobStatisticsService {
             metrics.put("maxDurationMs", durationStats.getMax());
             metrics.put("avgDurationMs", (long) durationStats.getAverage());
             metrics.put("totalExecutions", durationStats.getCount());
+        } else {
+            metrics.put("minDurationMs", 0);
+            metrics.put("maxDurationMs", 0);
+            metrics.put("avgDurationMs", 0);
+            metrics.put("totalExecutions", 0);
         }
 
         return metrics;
@@ -278,7 +362,7 @@ public class JobStatisticsService {
         stats.put("totalExecutions", allInstances.size());
 
         long successCount = allInstances.stream()
-                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS)
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED)
                 .count();
         stats.put("totalSuccesses", successCount);
 
@@ -295,11 +379,10 @@ public class JobStatisticsService {
      */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getTopFailingJobs(int limit) {
-        // Compute failed/total runs per job from instances, since Job has no such fields
         List<Map<String, Object>> jobStats = jobRepository.findAll().stream()
                 .map(job -> {
                     var instances = instanceRepository
-                            .findByJobId(job.getId(), org.springframework.data.domain.Pageable.unpaged())
+                            .findByJob_Id(job.getId(), Pageable.unpaged())
                             .getContent();
 
                     long totalRuns = instances.size();
@@ -332,7 +415,7 @@ public class JobStatisticsService {
         return jobRepository.findAll().stream()
                 .map(job -> {
                     var instances = instanceRepository
-                            .findByJobId(job.getId(), org.springframework.data.domain.Pageable.unpaged())
+                            .findByJob_Id(job.getId(), Pageable.unpaged())
                             .getContent();
 
                     Double avgDuration = instances.stream()
@@ -347,8 +430,8 @@ public class JobStatisticsService {
                     map.put("avgDurationMs", avgDuration);
                     return Map.entry(avgDuration, map);
                 })
-                .filter(entry -> entry.getKey() > 0) // Filter out jobs with no duration data
-                .sorted((e1, e2) -> Double.compare(e2.getKey(), e1.getKey())) // Sort by avgDurationMs desc
+                .filter(entry -> entry.getKey() > 0)
+                .sorted((e1, e2) -> Double.compare(e2.getKey(), e1.getKey()))
                 .limit(limit)
                 .map(Map.Entry::getValue)
                 .collect(Collectors.toList());
@@ -360,7 +443,7 @@ public class JobStatisticsService {
     @Transactional(readOnly = true)
     public Map<String, Long> getDurationDistribution(Long jobId) {
         var instances = instanceRepository
-                .findByJobId(jobId, org.springframework.data.domain.Pageable.unpaged())
+                .findByJob_Id(jobId, Pageable.unpaged())
                 .getContent();
 
         Map<String, Long> distribution = new HashMap<>();
@@ -386,7 +469,7 @@ public class JobStatisticsService {
     @Transactional(readOnly = true)
     public Map<String, Object> getRetryStatistics(Long jobId) {
         var instances = instanceRepository
-                .findByJobId(jobId, org.springframework.data.domain.Pageable.unpaged())
+                .findByJob_Id(jobId, Pageable.unpaged())
                 .getContent();
 
         Map<String, Object> stats = new HashMap<>();
@@ -410,7 +493,7 @@ public class JobStatisticsService {
     @Transactional(readOnly = true)
     public List<JobStatisticsDTO> compareJobs(List<Long> jobIds) {
         return jobIds.stream()
-                .map(this::getJobStatistics)
+                .map(this::calculateJobStatistics)
                 .collect(Collectors.toList());
     }
 
@@ -430,7 +513,7 @@ public class JobStatisticsService {
         Map<String, Object> stats = new HashMap<>();
         stats.put("totalExecutions", instances.size());
         stats.put("successfulExecutions", instances.stream()
-                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS)
+                .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED)
                 .count());
         stats.put("failedExecutions", instances.stream()
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.FAILED)
@@ -444,7 +527,7 @@ public class JobStatisticsService {
      */
     @Transactional(readOnly = true)
     public String exportStatisticsAsCSV(Long jobId) {
-        JobStatisticsDTO stats = getJobStatistics(jobId);
+        JobStatisticsDTO stats = calculateJobStatistics(jobId);
 
         StringBuilder csv = new StringBuilder();
         csv.append("Metric,Value\n");
@@ -457,6 +540,79 @@ public class JobStatisticsService {
         csv.append("Average Duration,").append(stats.getAvgDurationFormatted()).append("\n");
 
         return csv.toString();
+    }
+
+    /**
+     * Get job metrics
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getJobMetrics(Long jobId) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+
+        Map<String, Object> metrics = new HashMap<>();
+
+        // Get instance counts by status
+        long pending = instanceRepository.countByJob_IdAndStatus(
+                jobId, JobInstance.InstanceStatus.PENDING);
+        long running = instanceRepository.countByJob_IdAndStatus(
+                jobId, JobInstance.InstanceStatus.RUNNING);
+        long success = instanceRepository.countByJob_IdAndStatus(
+                jobId, JobInstance.InstanceStatus.COMPLETED);
+        long failed = instanceRepository.countByJob_IdAndStatus(
+                jobId, JobInstance.InstanceStatus.FAILED);
+
+        metrics.put("jobId", jobId);
+        metrics.put("jobName", job.getName());
+        metrics.put("status", job.getStatus());
+        metrics.put("pendingInstances", pending);
+        metrics.put("runningInstances", running);
+        metrics.put("successfulInstances", success);
+        metrics.put("failedInstances", failed);
+        metrics.put("totalInstances", pending + running + success + failed);
+
+        return metrics;
+    }
+
+    /**
+     * Get job history
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getJobHistory(Long jobId, int page, int size) {
+        Job job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by("scheduledTime").descending());
+
+        Page<JobInstance> instances = instanceRepository.findByJob_Id(jobId, pageable);
+
+        Map<String, Object> history = new HashMap<>();
+        history.put("jobId", jobId);
+        history.put("jobName", job.getName());
+        history.put("instances", instances.getContent().stream()
+                .map(this::mapInstanceToHistory)
+                .collect(Collectors.toList()));
+        history.put("page", page);
+        history.put("size", size);
+        history.put("totalElements", instances.getTotalElements());
+        history.put("totalPages", instances.getTotalPages());
+
+        return history;
+    }
+
+    private Map<String, Object> mapInstanceToHistory(JobInstance instance) {
+        Map<String, Object> historyItem = new HashMap<>();
+        historyItem.put("id", instance.getId());
+        historyItem.put("status", instance.getStatus());
+        historyItem.put("scheduledTime", instance.getScheduledTime());
+        historyItem.put("startedAt", instance.getStartedAt());
+        historyItem.put("completedAt", instance.getCompletedAt());
+        historyItem.put("durationMs", instance.getDurationMs());
+        historyItem.put("httpStatusCode", instance.getHttpStatusCode());
+        historyItem.put("errorMessage", instance.getErrorMessage());
+        historyItem.put("retryCount", instance.getRetryCount());
+        return historyItem;
     }
 
     // Helper methods

@@ -27,6 +27,10 @@ public interface JobLogRepository extends
     // Find logs by instance ID ordered by timestamp
     List<JobLog> findByInstanceIdOrderByCreatedAtAsc(Long instanceId);
 
+    Page<JobLog> findByJob_Id(Long jobId, Pageable pageable);
+
+    // Find logs by job ID and log level
+    Page<JobLog> findByJob_IdAndLogLevel(Long jobId, LogLevel logLevel, Pageable pageable);
     // Find logs by log level
     Page<JobLog> findByLogLevel(LogLevel logLevel, Pageable pageable);
 

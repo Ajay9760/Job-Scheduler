@@ -6,7 +6,9 @@ import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.dto.job.JobUpdateRequest;
 import com.example.chronos.exception.ResourceNotFoundException;
 import com.example.chronos.repository.JobRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -17,16 +19,11 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class JobService {
 
     private final JobRepository jobRepository;
     private final JobMapper jobMapper;
-
-    // Constructor (for Spring dependency injection and testing)
-    public JobService(JobRepository jobRepository, JobMapper jobMapper) {
-        this.jobRepository = jobRepository;
-        this.jobMapper = jobMapper;
-    }
 
     @Transactional
     public JobResponse create(JobCreateRequest request, String owner) {

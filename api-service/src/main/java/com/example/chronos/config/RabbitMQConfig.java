@@ -32,13 +32,11 @@ public class RabbitMQConfig {
                 .with(ROUTING_KEY);
     }
 
-    // ✅ ADD: Use JSON instead of Java serialization
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();
     }
 
-    // ✅ ADD: Configure RabbitTemplate to use JSON converter
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);

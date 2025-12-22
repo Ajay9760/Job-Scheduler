@@ -4,7 +4,7 @@ import com.example.chronos.domain.JobInstance;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;  // 👈 add this
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -12,7 +12,6 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Repository
 public interface JobInstanceRepository extends
@@ -20,18 +19,15 @@ public interface JobInstanceRepository extends
         JpaSpecificationExecutor<JobInstance> {
 
     // Find instances by job ID
-    Page<JobInstance> findByJobId(Long jobId, Pageable pageable);
+    Page<JobInstance> findByJob_Id(Long jobId, Pageable pageable);
 
     // Find instances by status
     List<JobInstance> findByStatus(JobInstance.InstanceStatus status);
 
     // Find instances by job ID and status
-    Page<JobInstance> findByJobIdAndStatus(Long jobId,
-                                           JobInstance.InstanceStatus status,
-                                           Pageable pageable);
-
-    // Find latest instance for a job
-    Optional<JobInstance> findFirstByJobIdOrderByCreatedAtDesc(Long jobId);
+    Page<JobInstance> findByJob_IdAndStatus(Long jobId,
+                                            JobInstance.InstanceStatus status,
+                                            Pageable pageable);
 
     // Find instances scheduled between dates
     List<JobInstance> findByScheduledTimeBetween(LocalDateTime start, LocalDateTime end);
@@ -46,7 +42,7 @@ public interface JobInstanceRepository extends
     List<JobInstance> findPendingInstancesReadyToRun(@Param("currentTime") LocalDateTime currentTime);
 
     // Count instances by job ID and status
-    long countByJobIdAndStatus(Long jobId, JobInstance.InstanceStatus status);
+    long countByJob_IdAndStatus(Long jobId, JobInstance.InstanceStatus status);
 
     // Get statistics for a job
     @Query("""
@@ -65,6 +61,7 @@ public interface JobInstanceRepository extends
        ORDER BY ji.scheduledTime ASC
        """)
     List<JobInstance> findFailedInstancesForRetry(@Param("maxRetries") int maxRetries);
+
     // Delete old instances (cleanup)
     void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
 
@@ -77,7 +74,7 @@ public interface JobInstanceRepository extends
     Page<JobInstance> findRecentInstancesByJobId(@Param("jobId") Long jobId, Pageable pageable);
 
     // Count total runs for a job
-    long countByJobId(Long jobId);
+    long countByJob_Id(Long jobId);
 
     // Find running instances
     @Query("""
@@ -86,4 +83,26 @@ public interface JobInstanceRepository extends
              AND ji.startedAt < :timeoutThreshold
            """)
     List<JobInstance> findStuckRunningInstances(@Param("timeoutThreshold") LocalDateTime timeoutThreshold);
+
+    // Find latest instance for a job
+    Optional<JobInstance> findFirstByJob_IdOrderByCreatedAtDesc(Long jobId);
+
+    // Find latest instances paginated
+    @Query("""
+       SELECT ji FROM JobInstance ji
+       WHERE ji.job.id = :jobId
+       ORDER BY ji.scheduledTime DESC
+       """)
+    Page<JobInstance> findLatestByJobId(@Param("jobId") Long jobId, Pageable pageable);
+
+    Page<JobInstance> findByStatusAndJobId(JobInstance.InstanceStatus status, Long jobId, Pageable pageable);
+    
+    Page<JobInstance> findByJobId(Long jobId, Pageable pageable);
+    
+    Page<JobInstance> findByJobIdAndStatus(Long jobId, JobInstance.InstanceStatus status, Pageable pageable);
+    
+    Page<JobInstance> findByJobIdAndStatusAndScheduledTimeBetween(Long jobId, JobInstance.InstanceStatus status, LocalDateTime start, LocalDateTime end, Pageable pageable);
+
+
+    Page<JobInstance> findByStatus(JobInstance.InstanceStatus status, Pageable pageable);
 }

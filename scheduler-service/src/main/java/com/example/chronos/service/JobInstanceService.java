@@ -2,7 +2,7 @@ package com.example.chronos.service;
 
 import com.example.chronos.domain.Job;
 import com.example.chronos.domain.JobInstance;
-import com.example.chronos.repository.JobInatanceRespository;
+import com.example.chronos.repository.JobINstanceRepository;
 import com.example.chronos.repository.JobRepository;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ import java.util.Map;
 @Slf4j
 public class JobInstanceService {
 
-    private final JobInatanceRespository instanceRepository;
+    private final JobINstanceRepository instanceRepository;
     private final JobRepository jobRepository;
     private final RabbitTemplate rabbitTemplate;
     private final CronCalculator cronCalculator;
@@ -56,7 +56,7 @@ public class JobInstanceService {
     /**
      * Sends the job instance to RabbitMQ for worker processing
      */
-    private void sendToWorkerQueue(JobInstance instance) {
+    public void sendToWorkerQueue(JobInstance instance) {
         try {
             Map<String, Object> message = new HashMap<>();
             message.put("instanceId", instance.getId());

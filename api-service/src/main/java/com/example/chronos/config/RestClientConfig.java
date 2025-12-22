@@ -20,7 +20,6 @@ public class RestClientConfig {
                     @Override
                     public boolean hasError(
                             org.springframework.http.client.ClientHttpResponse response) {
-                        // Let caller handle 4xx/5xx manually
                         return false;
                     }
                 })

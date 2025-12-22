@@ -38,20 +38,15 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF for stateless REST APIs
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // ✅ ENABLE CORS
                 .cors(Customizer.withDefaults())
 
-                // ✅ Set session management to STATELESS (important for JWT)
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Allow both /api/auth and /auth paths for backward compatibility
                         .requestMatchers(
                                 "/auth/login",
                                 "/auth/register",
@@ -68,38 +63,29 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                         .requestMatchers("/api/analytics/**").permitAll()
 
-                        // ✅ Admin endpoints - require ADMIN role
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-                        // All other requests require authentication
                         .anyRequest().authenticated()
                 )
 
-                // ✅ ADD JWT FILTER BEFORE UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Configure HTTP Basic authentication
                 .httpBasic(Customizer.withDefaults());
 
         return http.build();
     }
 
-
-    // ✅ IMPROVED CORS configuration
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
-        // ✅ Allow your React dev server (consider using environment variable for production)
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:3000"  // Add if using different port
         ));
 
-        // ✅ Allowed HTTP methods
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
 
-        // ✅ FIXED: Explicitly list allowed headers instead of "*"
         config.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
@@ -109,13 +95,10 @@ public class SecurityConfig {
                 "X-Requested-With"
         ));
 
-        // ✅ Expose Authorization header so frontend can read it
         config.setExposedHeaders(List.of("Authorization"));
 
-        // ✅ Allow credentials (needed for cookies/auth headers)
         config.setAllowCredentials(true);
 
-        // ✅ Cache preflight requests for 1 hour
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

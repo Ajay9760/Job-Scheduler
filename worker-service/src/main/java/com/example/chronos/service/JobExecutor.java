@@ -30,6 +30,8 @@ public class JobExecutor {
     /**
      * Execute a job instance
      */
+
+
     @Transactional
     public void executeJob(JobInstance instance) {
         try {
@@ -185,7 +187,7 @@ public class JobExecutor {
 
     /**
      * Update job statistics after execution.
-     * For now we just set lastError on failure.
+     * For now, we just set lastError on failure.
      */
     @Transactional
     public void updateJobStatistics(Job job, boolean success, Long durationMs, String errorMessage) {

@@ -1,131 +1,127 @@
 package com.example.chronos.domain;
 
-import com.example.chronos.domain.enums.HttpMethodType;
 import com.example.chronos.domain.enums.JobStatus;
+import com.example.chronos.domain.enums.HttpMethodType;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "jobs", indexes = {
         @Index(name = "idx_jobs_status", columnList = "status"),
-        @Index(name = "idx_jobs_created_by", columnList = "createdBy"),
-        @Index(name = "idx_jobs_next_run", columnList = "nextRunAt")
+        @Index(name = "idx_jobs_next_run", columnList = "next_run_at"),
+        @Index(name = "idx_jobs_external_id", columnList = "external_id")
 })
 @Data
+@Builder
 @NoArgsConstructor
+@AllArgsConstructor
 public class Job {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(name = "external_id", unique = true, nullable = false)
     private String externalId;
 
     @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false, length = 1000)
+    @Column(name = "target_url", nullable = false)
     private String targetUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "http_method", nullable = false)
     private HttpMethodType httpMethod;
 
-    @Column(length = 4000)
+    @Column(name = "request_body", columnDefinition = "TEXT")
     private String requestBody;
 
-    @Column(nullable = false)
-    private int priority = 5;
-
-    @Column(nullable = false)
-    private int timeoutSeconds = 30;
-
-    @Column(nullable = false)
-    private int maxRetries = 3;
-
-    @Column(nullable = false)
-    private int retryCount = 0;
-
-    @Column(nullable = false)
-    private long backoffSeconds = 30;
-
-    @Column(length = 1000)
-    private String webhookUrl;
-
-    @Column(nullable = false)
+    @Column(name = "cron_expression")
     private String cronExpression;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private JobStatus status = JobStatus.SCHEDULED;
+    @Builder.Default
+    private JobStatus status = JobStatus.ACTIVE;
 
     @Column(nullable = false)
-    private String createdBy; // This is your "owner" field
+    @Builder.Default
+    private Integer priority = 5;
 
-    @Column
-    private Instant nextRunAt;
+    @Column(name = "timeout_seconds")
+    @Builder.Default
+    private Integer timeoutSeconds = 30;
 
-    @Column(nullable = false, updatable = false)
-    private Instant createdAt;
+    @Column(name = "max_retries")
+    @Builder.Default
+    private Integer maxRetries = 3;
 
-    @Column(nullable = false)
-    private Instant updatedAt;
+    @Column(name = "retry_count")
+    @Builder.Default
+    private Integer retryCount = 0;
 
-    @Column(length = 2000)
+    @Column(name = "backoff_seconds")
+    @Builder.Default
+    private Long backoffSeconds = 60L;
+
+    @Column(name = "webhook_url")
+    private String webhookUrl;
+
+    @Column(name = "next_run_at")
+    private LocalDateTime nextRunAt;
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
-    // ========== NEW STATISTICS FIELDS (Add these) ==========
+    @Column(name = "created_by")
+    private String createdBy;
 
     @Column(name = "total_runs")
+    @Builder.Default
     private Integer totalRuns = 0;
 
     @Column(name = "successful_runs")
+    @Builder.Default
     private Integer successfulRuns = 0;
 
     @Column(name = "failed_runs")
+    @Builder.Default
     private Integer failedRuns = 0;
 
-    @Column(name = "last_run_at")
-    private Instant lastRunAt;
-
-    @Column(name = "last_success_at")
-    private Instant lastSuccessAt;
-
-    @Column(name = "last_failure_at")
-    private Instant lastFailureAt;
-
     @Column(name = "avg_duration_ms")
+    @Builder.Default
     private Long avgDurationMs = 0L;
 
-    @Column(name = "schedule_type", nullable = false, length = 20)
-    private String scheduleType = "CRON";
-
     @Column(name = "consecutive_failures")
+    @Builder.Default
     private Integer consecutiveFailures = 0;
-
-    // =========================================================
 
     @PrePersist
     protected void onCreate() {
-        createdAt = Instant.now();
-        updatedAt = Instant.now();
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+        if (status == null) {
+            status = JobStatus.ACTIVE;
+        }
         if (externalId == null) {
             externalId = java.util.UUID.randomUUID().toString();
         }
-        if (totalRuns == null) totalRuns = 0;
-        if (successfulRuns == null) successfulRuns = 0;
-        if (failedRuns == null) failedRuns = 0;
-        if (avgDurationMs == null) avgDurationMs = 0L;
-        if (consecutiveFailures == null) consecutiveFailures = 0;
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = Instant.now();
+        updatedAt = LocalDateTime.now();
     }
-
 }

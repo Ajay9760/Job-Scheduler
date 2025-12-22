@@ -24,13 +24,6 @@ public class JobStatisticsController {
 
     private final JobStatisticsService statisticsService;
 
-    @Operation(summary = "Get job statistics", description = "Get comprehensive statistics for a specific job")
-    @GetMapping("/job/{jobId}")
-    public ResponseEntity<ApiResponse<JobStatisticsDTO>> getJobStatistics(@PathVariable Long jobId) {
-        JobStatisticsDTO stats = statisticsService.getJobStatistics(jobId);
-        return ResponseEntity.ok(ApiResponse.success(stats));
-    }
-
     @Operation(summary = "Get dashboard overview", description = "Get system-wide statistics for dashboard")
     @GetMapping("/dashboard")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDashboardStats() {
@@ -125,6 +118,30 @@ public class JobStatisticsController {
     ) {
         List<JobStatisticsDTO> comparison = statisticsService.compareJobs(jobIds);
         return ResponseEntity.ok(ApiResponse.success(comparison));
+    }
+    @Operation(summary = "Get job statistics", description = "Get statistics for a specific job")
+    @GetMapping("/{jobId}/statistics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getJobStatistics(@PathVariable Long jobId) {
+        Map<String, Object> stats = statisticsService.getJobStatistics(jobId);
+        return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    @Operation(summary = "Get job metrics", description = "Get metrics for a specific job")
+    @GetMapping("/{jobId}/metrics")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getJobMetrics(@PathVariable Long jobId) {
+        Map<String, Object> metrics = statisticsService.getJobMetrics(jobId);
+        return ResponseEntity.ok(ApiResponse.success(metrics));
+    }
+
+    @Operation(summary = "Get job history", description = "Get history for a specific job")
+    @GetMapping("/{jobId}/history")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> getJobHistory(
+            @PathVariable Long jobId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "50") int size) {
+
+        Map<String, Object> history = statisticsService.getJobHistory(jobId, page, size);
+        return ResponseEntity.ok(ApiResponse.success(history));
     }
 
     @Operation(summary = "Get time range statistics", description = "Get statistics for a specific time period")

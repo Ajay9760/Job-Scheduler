@@ -31,7 +31,6 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final AuthService authService; // ✅ Changed from @Autowired to final
 
-    // ✅ Use constructor injection instead of @Autowired field
     public AuthController(AuthenticationManager authenticationManager,
                           JwtTokenUtil jwtTokenUtil,
                           UserRepository userRepository,

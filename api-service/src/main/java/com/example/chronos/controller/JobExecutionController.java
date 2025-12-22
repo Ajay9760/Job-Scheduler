@@ -7,6 +7,7 @@ import com.example.chronos.service.JobExecutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/jobs")
 @RequiredArgsConstructor
+@Slf4j
 @Tag(name = "Job Execution", description = "Manual job execution and control")
 public class JobExecutionController {
 
@@ -21,15 +23,21 @@ public class JobExecutionController {
 
     @Operation(summary = "Trigger job manually", description = "Execute a job immediately regardless of schedule")
     @PostMapping("/{id}/trigger")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")  // ✅ Allow both USER and ADMIN
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<ApiResponse<JobInstanceDTO>> triggerJob(@PathVariable Long id) {
+        log.info("🔥 Triggering job: {}", id);
+
         JobInstanceDTO instance = executionService.triggerManualExecution(id);
-        return ResponseEntity.ok(ApiResponse.success(instance, "Job triggered successfully"));
+
+        log.info("✅ Created instance ID: {} for job: {}", instance.getId(), id);
+
+        return ResponseEntity.ok(ApiResponse.success(instance,
+                "Job triggered successfully. Instance ID: " + instance.getId()));
     }
 
     @Operation(summary = "Resume job", description = "Resume a paused job")
     @PostMapping("/{id}/resume")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")  // ✅ Changed
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> resumeJob(@PathVariable Long id) {
         executionService.resumeJob(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Job resumed successfully"));
@@ -37,7 +45,7 @@ public class JobExecutionController {
 
     @Operation(summary = "Stop running instance", description = "Cancel a currently running job instance")
     @PostMapping("/instances/{instanceId}/stop")
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")  // ✅ Changed
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public ResponseEntity<ApiResponse<Void>> stopInstance(@PathVariable Long instanceId) {
         executionService.stopInstance(instanceId);
         return ResponseEntity.ok(ApiResponse.success(null, "Instance stopped successfully"));

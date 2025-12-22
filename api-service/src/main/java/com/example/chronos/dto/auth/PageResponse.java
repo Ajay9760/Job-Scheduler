@@ -7,9 +7,6 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
-/**
- * Generic paginated response wrapper
- */
 @Data
 @Builder
 @NoArgsConstructor
@@ -22,12 +19,10 @@ public class PageResponse<T> {
     private long totalElements;
     private int totalPages;
 
-    // Helper properties
     private boolean first;
     private boolean last;
     private boolean empty;
 
-    // Compute helper properties after building
     public void computeHelpers() {
         this.first = page == 0;
         this.last = page >= totalPages - 1;
@@ -47,5 +42,25 @@ public class PageResponse<T> {
 
         response.computeHelpers();
         return response;
+    }
+    public boolean isEmpty() {
+        computeHelpers();
+        return content == null || content.isEmpty();
+    }
+
+    public static class PageResponseBuilder<T> {
+        public PageResponse<T> build() {
+            PageResponse<T> response = new PageResponse<>(
+                    content, page, size, totalElements, totalPages, first, last, empty
+            );
+            response.computeHelpers();
+            response.empty = (content == null || content.isEmpty());
+            return response;
+        }
+
+        public PageResponseBuilder<T> pageNumber(int number) {
+            this.page = number;
+            return this;
+        }
     }
 }
