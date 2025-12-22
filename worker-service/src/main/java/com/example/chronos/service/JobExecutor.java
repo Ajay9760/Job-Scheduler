@@ -15,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.LocalDateTime;
+
 
 @Service
 @RequiredArgsConstructor
@@ -27,11 +29,7 @@ public class JobExecutor {
     private final WebhookService webhookService;
     private final RetryManager retryManager;
 
-    /**
-     * Execute a job instance
-     */
-
-
+    //Execute a job instance
     @Transactional
     public void executeJob(JobInstance instance) {
         try {
@@ -63,16 +61,14 @@ public class JobExecutor {
     public void handleSuccessTx(Long instanceId, ResponseEntity<String> response) {
         // DB update only
     }
-
     @Transactional
     public void handleFailureTx(Long instanceId, Exception e) {
         // DB update only
     }
 
 
-    /**
-     * Execute the actual HTTP request
-     */
+    //Execute the actual HTTP request
+
     private ResponseEntity<String> executeHttpRequest(JobInstance instance, Job job) throws Exception {
         createLog(instance, LogLevel.INFO, "Sending HTTP request to: " + job.getTargetUrl());
 
@@ -116,9 +112,8 @@ public class JobExecutor {
         return response;
     }
 
-    /**
-     * Handle successful execution
-     */
+    // Handle successful execution
+
     @Transactional
     public void handleSuccess(JobInstance instance, Job job, ResponseEntity<String> response) {
         log.info("Job instance {} completed successfully", instance.getId());
@@ -139,9 +134,8 @@ public class JobExecutor {
         }
     }
 
-    /**
-     * Handle failed execution with retry logic
-     */
+    //Handle failed execution with retry logic
+
     @Transactional
     public void handleFailure(JobInstance instance, Job job, Exception error) {
         log.error("Job instance {} failed: {}", instance.getId(), error.getMessage());
@@ -185,22 +179,19 @@ public class JobExecutor {
         }
     }
 
-    /**
-     * Update job statistics after execution.
-     * For now, we just set lastError on failure.
-     */
+    // Update job statistics after execution.
+
     @Transactional
     public void updateJobStatistics(Job job, boolean success, Long durationMs, String errorMessage) {
         if (!success) {
             job.setLastError(errorMessage);
         }
-        job.setUpdatedAt(java.time.Instant.now());
+        job.setUpdatedAt(LocalDateTime.from(java.time.Instant.now()));
         jobRepository.save(job);
     }
 
-    /**
-     * Simple logger-based "log entry"
-     */
+    // Simple logger-based "log entry"
+
     private void createLog(JobInstance instance, LogLevel level, String message) {
         String prefix = String.format("[instance=%d, job=%d] ",
                 instance.getId(),
@@ -214,9 +205,8 @@ public class JobExecutor {
         }
     }
 
-    /**
-     * Truncate response body to avoid storing huge responses
-     */
+    //Truncate response body to avoid storing huge responses
+
     private String truncateResponse(String response) {
         if (response == null) return null;
         int maxLength = 5000;
@@ -225,9 +215,8 @@ public class JobExecutor {
                 : response;
     }
 
-    /**
-     * Truncate error message
-     */
+    //Truncate error message
+
     private String truncateError(String error) {
         if (error == null) return "Unknown error";
         int maxLength = 1000;

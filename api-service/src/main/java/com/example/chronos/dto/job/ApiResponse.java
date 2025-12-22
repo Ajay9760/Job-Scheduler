@@ -24,7 +24,6 @@ public class ApiResponse<T> {
         return response;
     }
 
-    // Add this overloaded method
     public static <T> ApiResponse<T> success(T data) {
         return success(data, "Success");
     }

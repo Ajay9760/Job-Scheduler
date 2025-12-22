@@ -48,8 +48,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         // 2. If no Bearer header, DO NOT block – just continue the chain.
-        //    This allows tests (and any other mechanism) that set the SecurityContext
-        //    to still work without a JWT header.
         if (header == null || !header.startsWith("Bearer ")) {
             if (!"OPTIONS".equals(request.getMethod())) {
                 logger.warn("No valid Auth Header found for endpoint: {}. Proceeding without JWT auth.", requestPath);

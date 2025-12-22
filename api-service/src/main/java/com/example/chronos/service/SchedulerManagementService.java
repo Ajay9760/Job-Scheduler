@@ -27,9 +27,8 @@ public class SchedulerManagementService {
     private final JobInstanceRepository instanceRepository;
     private final JobLogRepository logRepository;
 
-    /**
-     * Get scheduler status
-     */
+    //Get scheduler status
+
     public Map<String, Object> getStatus() {
         Map<String, Object> status = new HashMap<>();
 
@@ -63,9 +62,8 @@ public class SchedulerManagementService {
         return status;
     }
 
-    /**
-     * Force schedule all active jobs
-     */
+    //Force schedule all active jobs
+
     @Transactional
     public int forceScheduleAllJobs() {
         List<Job> scheduledJobs = jobRepository.findAll().stream()
@@ -96,9 +94,8 @@ public class SchedulerManagementService {
         return count;
     }
 
-    /**
-     * Calculate next run times for all jobs
-     */
+    // Calculate next run times for all jobs
+
     @Transactional
     public int calculateAllNextRuns() {
         List<Job> jobs = jobRepository.findAll().stream()
@@ -123,16 +120,14 @@ public class SchedulerManagementService {
         return updated;
     }
 
-    /**
-     * Cleanup old data
-     */
+    // Cleanup old data
+
     @Transactional
     public Map<String, Integer> cleanup(int olderThanDays) {
         Map<String, Integer> result = new HashMap<>();
 
         LocalDateTime cutoff = LocalDateTime.now().minusDays(olderThanDays);
 
-        // Cleanup old instances
         List<JobInstance> oldInstances = instanceRepository.findAll().stream()
                 .filter(i -> i.getCreatedAt() != null && i.getCreatedAt().isBefore(cutoff))
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.SUCCESS
@@ -143,7 +138,6 @@ public class SchedulerManagementService {
         result.put("instancesDeleted", oldInstances.size());
         log.info("Deleted {} old instances", oldInstances.size());
 
-        // Cleanup old logs
         try {
             logRepository.deleteByCreatedAtBefore(cutoff);
             result.put("logsDeleted", 0); // Can't easily count deleted

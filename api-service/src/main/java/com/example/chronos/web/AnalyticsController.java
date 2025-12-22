@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-// ✅ FIX 1: Match the Postman URL path
 @RequestMapping("/api/analytics")
 public class AnalyticsController {
 
@@ -20,7 +19,6 @@ public class AnalyticsController {
         this.jobRepository = jobRepository;
     }
 
-    // ✅ FIX 2: Add the 'dashboard' endpoint Postman expects
     @GetMapping("/dashboard")
     public Map<String, Object> getDashboardStats() {
         var jobs = jobRepository.findAll();
@@ -37,7 +35,6 @@ public class AnalyticsController {
         return dashboard;
     }
 
-    // ✅ FIX 3: Add the 'job stats' endpoint Postman expects
     @GetMapping("/jobs/{id}/stats")
     public Map<String, Object> getJobStats(@PathVariable Long id) {
         // Simple mock stats since you don't have execution history yet

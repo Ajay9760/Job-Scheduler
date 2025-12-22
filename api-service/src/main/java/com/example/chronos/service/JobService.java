@@ -43,9 +43,8 @@ public class JobService {
         return jobMapper.toDto(job);
     }
 
-    /**
-     * List all jobs for a specific user (Original method name from your controller)
-     */
+    //List all jobs for a specific user
+
     @Transactional(readOnly = true)
     public List<JobResponse> listForUser(String owner) {
         List<Job> jobs = jobRepository.findByCreatedBy(owner); // Use your existing field name
@@ -55,10 +54,8 @@ public class JobService {
     }
 
 
-   /**
-     * List ALL jobs in the database (regardless of owner)
-     * Use this for admin views or when you need to see all jobs
-     */
+   // List ALL jobs in the database (regardless of owner)
+
     @Transactional(readOnly = true)
     public List<JobResponse> listAllJobs() {
         log.info("Fetching all jobs from database");
@@ -68,9 +65,8 @@ public class JobService {
                 .map(jobMapper::toDto)
                 .collect(Collectors.toList());
     }
-    /**
-     * Get a specific job for a user (Original method name from your controller)
-     */
+    // Get a specific job for a user
+
     @Transactional(readOnly = true)
     public JobResponse getForUser(Long id, String owner) {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner) // Use your existing field name
@@ -81,10 +77,9 @@ public class JobService {
         if (!job.getCreatedBy().equals(owner)) {
             throw new org.springframework.security.access.AccessDeniedException("Access Denied");
         }
-        log.info("✅ Retrieved job {} for user {}", id, owner);
+        log.info(" Retrieved job {} for user {}", id, owner);
         return jobMapper.toDto(job);
     }
-
 
     @Transactional
     public void delete(Long id, String owner) {
@@ -101,9 +96,7 @@ public class JobService {
         jobRepository.delete(job);
         log.info("🗑️ Deleted job: {} for owner: {}", id, owner);
     }
-    /**
-     * Update a job (Original method name from your controller)
-     */
+    // Update a job
     @Transactional
     public JobResponse update(Long id, JobUpdateRequest request, String owner) {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner) // Use your existing field name
@@ -123,12 +116,8 @@ public class JobService {
         return jobMapper.toDto(job);
     }
 
-    /**
-     * Delete a job (Original method name from your controller)
-     */
-    /**
-     * Pause a job (NEW method needed by your controller)
-     */
+    // Delete a job
+    // Pause a job
     @Transactional
     public void pause(Long id, String owner) {
         Job job = jobRepository.findByIdAndCreatedBy(id, owner) // Use your existing field name
@@ -148,17 +137,13 @@ public class JobService {
 
     // ==================== STANDARD METHODS (For Other Controllers) ====================
 
-    /**
-     * Create job (standard method name)
-     */
+    // Create job
     @Transactional
     public JobResponse createJob(JobCreateRequest request) {
         return create(request, "system");
     }
 
-    /**
-     * Get job by ID (standard method name)
-     */
+    // Get job by ID
     @Transactional(readOnly = true)
     public JobResponse getJobById(Long id) {
         Job job = jobRepository.findById(id)
@@ -166,9 +151,8 @@ public class JobService {
         return jobMapper.toDto(job);
     }
 
-    /**
-     * Get all jobs with pagination
-     */
+    // Get all jobs with pagination
+
     @Transactional(readOnly = true)
     public Page<JobResponse> getAllJobs(String status, Pageable pageable) {
         Page<Job> jobs;
@@ -185,9 +169,8 @@ public class JobService {
         return jobs.map(jobMapper::toDto);
     }
 
-    /**
-     * Get active jobs
-     */
+    // Get active jobs
+
     @Transactional(readOnly = true)
     public List<JobResponse> getActiveJobs() {
         return jobRepository.findByStatus(com.example.chronos.domain.enums.JobStatus.SCHEDULED)
@@ -196,9 +179,7 @@ public class JobService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Update job (standard method name)
-     */
+    //  Update job
     @Transactional
     public JobResponse updateJob(Long id, JobUpdateRequest request) {
         Job job = jobRepository.findById(id)
@@ -210,9 +191,7 @@ public class JobService {
         return jobMapper.toDto(job);
     }
 
-    /**
-     * Delete job (standard method name)
-     */
+    // Delete job
     @Transactional
     public void deleteJob(Long id) {
         if (!jobRepository.existsById(id)) {

@@ -23,21 +23,20 @@ public class JobConsumer {
     private final RestTemplate restTemplate = new RestTemplate();
 
     @RabbitListener(queues = "chronos.job.queue")
-    @Transactional  // ✅ ADD THIS - Keeps Hibernate session open
+    @Transactional
     public void processJob(Map<String, Object> message) {
         Long instanceId = ((Number) message.get("instanceId")).longValue();
-        log.info("🔄 Processing job instance: {}", instanceId);
+        log.info(" Processing job instance: {}", instanceId);
 
         JobInstance instance = instanceRepository.findById(instanceId).orElse(null);
         if (instance == null) {
-            log.error("❌ Instance not found: {}", instanceId);
+            log.error(" Instance not found: {}", instanceId);
             return;
         }
 
         Job job = instance.getJob();
 
         try {
-            // Validate job has required fields
             if (job.getTargetUrl() == null || job.getTargetUrl().isEmpty()) {
                 throw new IllegalStateException("Job targetUrl is null or empty");
             }
@@ -50,7 +49,7 @@ public class JobConsumer {
             instance.setStartedAt(LocalDateTime.now());
             instanceRepository.save(instance);
 
-            log.info("▶️ Instance {} started - calling {} {}",
+            log.info(" Instance {} started - calling {} {}",
                     instanceId, job.getHttpMethod(), job.getTargetUrl());
 
             // Execute HTTP request
@@ -78,11 +77,11 @@ public class JobConsumer {
             instance.setHttpStatusCode(response.getStatusCode().value());
             instance.setResponseBody(response.getBody());
 
-            log.info("✅ Job instance {} completed successfully in {}ms with status {}",
+            log.info("Job instance {} completed successfully in {}ms with status {}",
                     instanceId, duration, response.getStatusCode().value());
 
         } catch (Exception e) {
-            log.error("❌ Job instance {} failed: {}", instanceId, e.getMessage(), e);
+            log.error("Job instance {} failed: {}", instanceId, e.getMessage(), e);
 
             instance.setStatus(JobInstance.InstanceStatus.FAILED);
             instance.setCompletedAt(LocalDateTime.now());
@@ -94,7 +93,7 @@ public class JobConsumer {
             instance.setErrorMessage(errorMsg);
         } finally {
             instanceRepository.save(instance);
-            log.info("📊 Instance {} final status: {}", instanceId, instance.getStatus());
+            log.info("Instance {} final status: {}", instanceId, instance.getStatus());
         }
     }
 }

@@ -34,10 +34,6 @@ public class CustomUserDetailsService implements UserDetailsService {
         );
     }
 
-    /**
-     * Convert comma-separated roles string to GrantedAuthority collection
-     * Roles in DB should already have ROLE_ prefix: "ROLE_USER,ROLE_ADMIN"
-     */
     private Collection<? extends GrantedAuthority> getAuthorities(String roles) {
         return Arrays.stream(roles.split(","))
                 .map(String::trim)

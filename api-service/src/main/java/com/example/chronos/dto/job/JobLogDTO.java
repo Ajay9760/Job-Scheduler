@@ -27,7 +27,6 @@ public class JobLogDTO {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime createdAt;
 
-    // UI helpers
     private String levelColor;
     private String levelIcon;
 

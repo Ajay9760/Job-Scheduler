@@ -90,21 +90,21 @@ public class JobInstance {
         RETRY_PENDING, SKIPPED
     }
 
-    // Calculate duration if both start and completion times exist
+    // Calculates duration if both start and completion times exist
     public void calculateDuration() {
         if (startedAt != null && completedAt != null) {
             this.durationMs = java.time.Duration.between(startedAt, completedAt).toMillis();
         }
     }
 
-    // Mark as started
+    // Marks as started
     public void markAsStarted() {
         this.status = InstanceStatus.RUNNING;
         this.startedAt = LocalDateTime.now();
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Mark as completed with status
+    // Marks as completed with status
     public void markAsCompleted(InstanceStatus finalStatus, String message) {
         this.status = finalStatus;
         this.completedAt = LocalDateTime.now();

@@ -1,10 +1,6 @@
 package com.example.chronos.controller;
 
-//import com.chronos.api.dto.ApiResponse;
-//import com.chronos.api.dto.JobLogDTO;
-//import com.chronos.api.dto.PageResponse;
-//import com.chronos.api.entity.JobLog.LogLevel;
-//import com.chronos.api.service.JobLogService;
+
 import com.example.chronos.domain.JobLog;
 import com.example.chronos.dto.auth.PageResponse;
 import com.example.chronos.dto.job.ApiResponse;

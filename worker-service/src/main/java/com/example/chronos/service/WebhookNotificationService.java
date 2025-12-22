@@ -24,7 +24,6 @@ public class WebhookNotificationService {
     }
 
     public void notify(Job job, boolean success, String resultBody) {
-        // No webhook configured, nothing to do
         if (job.getWebhookUrl() == null || job.getWebhookUrl().isBlank()) {
             return;
         }

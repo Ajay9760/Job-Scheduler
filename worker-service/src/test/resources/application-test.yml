@@ -18,4 +18,4 @@ spring:
       open-duration-seconds: 60
 
   flyway:
-    enabled: false            # worker-service tests don't need Flyway
+    enabled: false

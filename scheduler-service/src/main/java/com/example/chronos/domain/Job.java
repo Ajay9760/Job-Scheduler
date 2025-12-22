@@ -78,8 +78,6 @@ public class Job {
     @Column(length = 2000)
     private String lastError;
 
-    // ========== NEW STATISTICS FIELDS (Add these) ==========
-
     @Column(name = "total_runs")
     private Integer totalRuns = 0;
 
@@ -106,8 +104,6 @@ public class Job {
 
     @Column(name = "consecutive_failures")
     private Integer consecutiveFailures = 0;
-
-    // =========================================================
 
     @PrePersist
     protected void onCreate() {
