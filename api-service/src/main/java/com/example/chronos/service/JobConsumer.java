@@ -88,8 +88,6 @@ public class JobConsumer {
                 statusCode.value() == 504;
     }
 
-    // ----------------- HELPERS -----------------
-
     private boolean isRetryable(HttpStatus status) {
         return status == HttpStatus.SERVICE_UNAVAILABLE ||
                 status == HttpStatus.GATEWAY_TIMEOUT ||

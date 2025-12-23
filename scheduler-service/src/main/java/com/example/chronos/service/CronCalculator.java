@@ -12,9 +12,8 @@ import java.time.ZoneId;
 @Slf4j
 public class CronCalculator {
 
-    /**
-     * Calculate next run time based on schedule type and expression
-     */
+    // Calculate next run time based on schedule type and expression
+
     public LocalDateTime calculateNextRun(String scheduleType, String cronExpression, LocalDateTime currentTime) {
         if (currentTime == null) {
             currentTime = LocalDateTime.now();
@@ -28,9 +27,8 @@ public class CronCalculator {
         };
     }
 
-    /**
-     * Calculate next run for CRON expressions
-     */
+    //Calculate next run for CRON expressions
+
     private LocalDateTime calculateCronNextRun(String cronExpression, LocalDateTime from) {
         try {
             CronExpression cron = CronExpression.parse(cronExpression);
@@ -51,9 +49,8 @@ public class CronCalculator {
         }
     }
 
-    /**
-     * Calculate next run for interval-based schedules (e.g., "5m", "1h", "30s")
-     */
+    //Calculate next run for interval-based schedules (e.g., "5m", "1h", "30s")
+
     private LocalDateTime calculateIntervalNextRun(String interval, LocalDateTime from) {
         try {
             Duration duration = parseInterval(interval);
@@ -66,9 +63,8 @@ public class CronCalculator {
         }
     }
 
-    /**
-     * Parse interval string (e.g., "5m", "1h", "30s") to Duration
-     */
+    // Parse interval string (e.g., "5m", "1h", "30s") to Duration
+
     private Duration parseInterval(String interval) {
         if (interval == null || interval.isEmpty()) {
             throw new IllegalArgumentException("Interval cannot be empty");
@@ -76,7 +72,6 @@ public class CronCalculator {
 
         interval = interval.trim().toLowerCase();
 
-        // Extract number and unit
         int i = 0;
         while (i < interval.length() && (Character.isDigit(interval.charAt(i)) || interval.charAt(i) == '.')) {
             i++;
@@ -100,9 +95,8 @@ public class CronCalculator {
         };
     }
 
-    /**
-     * Validate CRON expression
-     */
+    //Validate CRON expression
+
     public boolean isValidCron(String cronExpression) {
         try {
             CronExpression.parse(cronExpression);
@@ -112,9 +106,8 @@ public class CronCalculator {
         }
     }
 
-    /**
-     * Validate interval format
-     */
+    // Validate interval format
+
     public boolean isValidInterval(String interval) {
         try {
             parseInterval(interval);
@@ -124,9 +117,8 @@ public class CronCalculator {
         }
     }
 
-    /**
-     * Get human-readable description of schedule
-     */
+    // Get human-readable description of schedule
+
     public String getScheduleDescription(String scheduleType, String expression) {
         try {
             return switch (scheduleType.toUpperCase()) {
@@ -140,12 +132,10 @@ public class CronCalculator {
         }
     }
 
-    /**
-     * Get human-readable CRON description
-     */
+    // Get human-readable CRON description
+
     private String describeCron(String cronExpression) {
-        // Common CRON patterns
-        return switch (cronExpression) {
+         return switch (cronExpression) {
             case "0 * * * * *" -> "Every minute";
             case "0 0 * * * *" -> "Every hour";
             case "0 0 0 * * *" -> "Every day at midnight";
@@ -156,9 +146,8 @@ public class CronCalculator {
         };
     }
 
-    /**
-     * Calculate time until next run
-     */
+    // Calculate time until next run
+
     public Duration getTimeUntilNextRun(String scheduleType, String expression, LocalDateTime lastRun) {
         LocalDateTime nextRun = calculateNextRun(scheduleType, expression, lastRun);
         if (nextRun == null) {

@@ -8,7 +8,7 @@ import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.dto.job.JobUpdateRequest;
 import org.springframework.stereotype.Component;
 
-import java.time.Instant;
+import java.time.ZoneId;
 
 @Component
 public class JobMapper {
@@ -33,7 +33,7 @@ public class JobMapper {
     public void updateEntity(Job job, JobUpdateRequest dto) {
         if (dto.getName() != null) job.setName(dto.getName());
         if (dto.getTargetUrl() != null) job.setTargetUrl(dto.getTargetUrl());
-        if (dto.getHttpMethod() != null) job.setHttpMethod(HttpMethodType.valueOf(dto.getHttpMethod().toUpperCase())); // ✅ Convert String to enum
+        if (dto.getHttpMethod() != null) job.setHttpMethod(HttpMethodType.valueOf(dto.getHttpMethod().toUpperCase()));
         if (dto.getCronExpression() != null) job.setCronExpression(dto.getCronExpression());
         if (dto.getPriority() != null) job.setPriority(dto.getPriority());
         if (dto.getTimeoutSeconds() != null) job.setTimeoutSeconds(dto.getTimeoutSeconds());
@@ -48,7 +48,7 @@ public class JobMapper {
         r.setExternalId(job.getExternalId());
         r.setName(job.getName());
         r.setTargetUrl(job.getTargetUrl());
-        r.setHttpMethod(HttpMethodType.valueOf(job.getHttpMethod().name())); // ✅ Convert enum to String
+        r.setHttpMethod(HttpMethodType.valueOf(job.getHttpMethod().name()));
         r.setCronExpression(job.getCronExpression());
         r.setStatus(job.getStatus());
         r.setPriority(job.getPriority());
@@ -57,9 +57,14 @@ public class JobMapper {
         r.setRetryCount(job.getRetryCount());
         r.setBackoffSeconds(job.getBackoffSeconds());
         r.setWebhookUrl(job.getWebhookUrl());
-        r.setNextRunAt(Instant.from(job.getNextRunAt()));
-        r.setCreatedAt(Instant.from(job.getCreatedAt()));
-        r.setUpdatedAt(Instant.from(job.getUpdatedAt()));
+
+        // Handle null LocalDateTime values by converting to Instant safely
+        r.setNextRunAt(job.getNextRunAt() != null ?
+                job.getNextRunAt().atZone(ZoneId.systemDefault()).toInstant() : null);
+        r.setCreatedAt(job.getCreatedAt() != null ?
+                job.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant() : null);
+        r.setUpdatedAt(job.getUpdatedAt() != null ?
+                job.getUpdatedAt().atZone(ZoneId.systemDefault()).toInstant() : null);
         r.setLastError(job.getLastError());
         return r;
     }

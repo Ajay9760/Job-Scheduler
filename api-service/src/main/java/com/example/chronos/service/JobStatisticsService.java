@@ -28,9 +28,7 @@ public class JobStatisticsService {
     private final JobRepository jobRepository;
     private final JobInstanceRepository instanceRepository;
 
-    /**
-     * Get job statistics - Returns Map
-     */
+    //  Get job statistics
     @Transactional(readOnly = true)
     public Map<String, Object> getJobStatistics(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -54,7 +52,7 @@ public class JobStatisticsService {
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.RUNNING)
                 .count();
 
-        // Average duration (only completed instances with non-null duration)
+        // Average duration
         OptionalDouble avgDuration = allInstances.stream()
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED
                         && i.getDurationMs() != null)
@@ -68,7 +66,6 @@ public class JobStatisticsService {
                 ? (successfulRuns * 100.0 / totalRuns)
                 : 0.0;
 
-        // Consecutive failures
         int consecutiveFailures = calculateConsecutiveFailures(allInstances);
 
         // Build response map
@@ -84,12 +81,10 @@ public class JobStatisticsService {
         stats.put("successRate", String.format("%.2f%%", successRate));
         stats.put("consecutiveFailures", consecutiveFailures);
 
-        // Add nextRunAt if available
         if (job.getNextRunAt() != null) {
             stats.put("nextRunAt", job.getNextRunAt());
         }
 
-        // Add last error if available
         if (job.getLastError() != null) {
             stats.put("lastErrorMessage", job.getLastError());
         }
@@ -97,9 +92,8 @@ public class JobStatisticsService {
         return stats;
     }
 
-    /**
-     * Calculate and return comprehensive statistics for a job as DTO
-     */
+    // Calculate and return comprehensive statistics for a job as DTO
+
     @Transactional(readOnly = true)
     public JobStatisticsDTO calculateJobStatistics(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -123,7 +117,7 @@ public class JobStatisticsService {
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.RUNNING)
                 .count();
 
-        // Average duration (only completed instances with non-null duration)
+        // Average duration
         OptionalDouble avgDuration = allInstances.stream()
                 .filter(i -> i.getStatus() == JobInstance.InstanceStatus.COMPLETED
                         && i.getDurationMs() != null)
@@ -156,9 +150,8 @@ public class JobStatisticsService {
         return stats;
     }
 
-    /**
-     * Helper method to calculate consecutive failures
-     */
+    // Helper method to calculate consecutive failures
+
     private int calculateConsecutiveFailures(List<JobInstance> instances) {
         int consecutiveFailures = 0;
 
@@ -178,9 +171,8 @@ public class JobStatisticsService {
         return consecutiveFailures;
     }
 
-    /**
-     * Get dashboard statistics
-     */
+    // Get dashboard statistics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getDashboardStatistics() {
         Map<String, Object> stats = new HashMap<>();
@@ -216,9 +208,8 @@ public class JobStatisticsService {
         return stats;
     }
 
-    /**
-     * Get job health metrics
-     */
+    //Get job health metrics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getJobHealth(Long jobId) {
         JobStatisticsDTO stats = calculateJobStatistics(jobId);
@@ -235,9 +226,8 @@ public class JobStatisticsService {
         return health;
     }
 
-    /**
-     * Get daily statistics
-     */
+    // Get daily statistics
+
     @Transactional(readOnly = true)
     public List<JobStatisticsDTO.DailyStatistic> getDailyStatistics(Long jobId, int days) {
         LocalDateTime startDate = LocalDateTime.now().minusDays(days);
@@ -275,9 +265,8 @@ public class JobStatisticsService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get hourly statistics
-     */
+    // Get hourly statistics
+
     @Transactional(readOnly = true)
     public Map<Integer, Long> getHourlyStatistics(Long jobId) {
         LocalDateTime last24Hours = LocalDateTime.now().minusHours(24);
@@ -291,9 +280,8 @@ public class JobStatisticsService {
                 ));
     }
 
-    /**
-     * Get execution trends
-     */
+    //Get execution trends
+
     @Transactional(readOnly = true)
     public Map<String, Object> getExecutionTrends(Long jobId, int days) {
         List<JobStatisticsDTO.DailyStatistic> dailyStats = getDailyStatistics(jobId, days);
@@ -315,9 +303,8 @@ public class JobStatisticsService {
         return trends;
     }
 
-    /**
-     * Get performance metrics
-     */
+    // Get performance metrics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getPerformanceMetrics(Long jobId) {
         var instances = instanceRepository
@@ -349,9 +336,8 @@ public class JobStatisticsService {
         return metrics;
     }
 
-    /**
-     * Get system-wide statistics
-     */
+    // Get system-wide statistics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getSystemStatistics() {
         var allJobs = jobRepository.findAll();
@@ -374,9 +360,8 @@ public class JobStatisticsService {
         return stats;
     }
 
-    /**
-     * Get top failing jobs
-     */
+    // Get top failing jobs
+
     @Transactional(readOnly = true)
     public List<Map<String, Object>> getTopFailingJobs(int limit) {
         List<Map<String, Object>> jobStats = jobRepository.findAll().stream()
@@ -407,10 +392,8 @@ public class JobStatisticsService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get slowest jobs
-     */
-    @Transactional(readOnly = true)
+    // Get slowest jobs
+     @Transactional(readOnly = true)
     public List<Map<String, Object>> getSlowestJobs(int limit) {
         return jobRepository.findAll().stream()
                 .map(job -> {
@@ -437,9 +420,8 @@ public class JobStatisticsService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get duration distribution
-     */
+    // Get duration distribution
+
     @Transactional(readOnly = true)
     public Map<String, Long> getDurationDistribution(Long jobId) {
         var instances = instanceRepository
@@ -463,9 +445,8 @@ public class JobStatisticsService {
         return distribution;
     }
 
-    /**
-     * Get retry statistics
-     */
+    // Get retry statistics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getRetryStatistics(Long jobId) {
         var instances = instanceRepository
@@ -487,9 +468,8 @@ public class JobStatisticsService {
         return stats;
     }
 
-    /**
-     * Compare multiple jobs
-     */
+    // Compare multiple jobs
+
     @Transactional(readOnly = true)
     public List<JobStatisticsDTO> compareJobs(List<Long> jobIds) {
         return jobIds.stream()
@@ -497,9 +477,8 @@ public class JobStatisticsService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get time range statistics
-     */
+    // Get time range statistics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getTimeRangeStatistics(LocalDateTime start, LocalDateTime end, Long jobId) {
         var instances = instanceRepository.findByScheduledTimeBetween(start, end);
@@ -522,9 +501,8 @@ public class JobStatisticsService {
         return stats;
     }
 
-    /**
-     * Export statistics as CSV
-     */
+    //Export statistics as CSV
+
     @Transactional(readOnly = true)
     public String exportStatisticsAsCSV(Long jobId) {
         JobStatisticsDTO stats = calculateJobStatistics(jobId);
@@ -542,9 +520,8 @@ public class JobStatisticsService {
         return csv.toString();
     }
 
-    /**
-     * Get job metrics
-     */
+    // Get job metrics
+
     @Transactional(readOnly = true)
     public Map<String, Object> getJobMetrics(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -552,7 +529,6 @@ public class JobStatisticsService {
 
         Map<String, Object> metrics = new HashMap<>();
 
-        // Get instance counts by status
         long pending = instanceRepository.countByJob_IdAndStatus(
                 jobId, JobInstance.InstanceStatus.PENDING);
         long running = instanceRepository.countByJob_IdAndStatus(
@@ -574,9 +550,8 @@ public class JobStatisticsService {
         return metrics;
     }
 
-    /**
-     * Get job history
-     */
+    // Get job history
+
     @Transactional(readOnly = true)
     public Map<String, Object> getJobHistory(Long jobId, int page, int size) {
         Job job = jobRepository.findById(jobId)
@@ -615,16 +590,13 @@ public class JobStatisticsService {
         return historyItem;
     }
 
-    // Helper methods
     private double calculateHealthScore(JobStatisticsDTO stats) {
         double score = 100.0;
 
-        // Deduct for failures
         if (stats.getSuccessRate() < 100) {
             score -= (100 - stats.getSuccessRate()) * 0.5;
         }
 
-        // Deduct for consecutive failures
         if (stats.getConsecutiveFailures() != null && stats.getConsecutiveFailures() > 0) {
             score -= stats.getConsecutiveFailures() * 10;
         }

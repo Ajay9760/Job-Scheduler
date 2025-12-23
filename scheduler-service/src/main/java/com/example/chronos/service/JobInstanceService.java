@@ -25,9 +25,8 @@ public class JobInstanceService {
     private final RabbitTemplate rabbitTemplate;
     private final CronCalculator cronCalculator;
 
-    /**
-     * Creates a new JobInstance for a scheduled job and sends it to the worker queue
-     */
+    // Creates a new JobInstance for a scheduled job and sends it to the worker queue
+
     @Transactional
     public JobInstance createAndScheduleInstance(Job job) {
         log.info("Creating instance for job: {} (ID: {})", job.getName(), job.getId());
@@ -53,9 +52,8 @@ public class JobInstanceService {
         return instance;
     }
 
-    /**
-     * Sends the job instance to RabbitMQ for worker processing
-     */
+    //Sends the job instance to RabbitMQ for worker processing
+
     public void sendToWorkerQueue(JobInstance instance) {
         try {
             Map<String, Object> message = new HashMap<>();
@@ -73,12 +71,9 @@ public class JobInstanceService {
         }
     }
 
-    /**
-     * Updates job's next_run_at based on CRON schedule
-     */
-    /**
-     * Updates job's next_run_at based on CRON schedule
-     */
+
+     // Updates job's next_run_at based on CRON schedule
+
     @Transactional
     public void updateJobNextRun(Job job) {
         try {
@@ -93,13 +88,11 @@ public class JobInstanceService {
                     baseTime
             );
 
-            // ✅ Convert LocalDateTime to Instant and set next run
             if (nextRunLocal != null) {
                 Instant nextRunInstant = nextRunLocal.atZone(java.time.ZoneId.systemDefault()).toInstant();
                 job.setNextRunAt(nextRunInstant);
             }
 
-            // ✅ Set last run time and increment total runs
             job.setLastRunAt(Instant.now());
             job.setTotalRuns(job.getTotalRuns() != null ? job.getTotalRuns() + 1 : 1);
 
@@ -110,9 +103,8 @@ public class JobInstanceService {
             log.error("Failed to calculate next run for job {}: {}", job.getId(), e.getMessage());
         }
     }
-    /**
-     * Creates instance for manual trigger (runs immediately)
-     */
+    //Creates instance for manual trigger (runs immediately)
+
     @Transactional
     public JobInstance createManualInstance(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -133,9 +125,8 @@ public class JobInstanceService {
         return instance;
     }
 
-    /**
-     * Creates retry instance for failed jobs
-     */
+    //Creates retry instance for failed jobs
+
     @Transactional
     public JobInstance createRetryInstance(JobInstance failedInstance) {
         log.info("Creating retry instance for failed instance: {}", failedInstance.getId());
@@ -153,9 +144,8 @@ public class JobInstanceService {
         return retryInstance;
     }
 
-    /**
-     * Marks stuck running instances as timeout
-     */
+    // Marks stuck running instances as timeout
+
     @Transactional
     public void cleanupStuckInstances() {
         LocalDateTime timeoutThreshold = LocalDateTime.now().minusMinutes(30);

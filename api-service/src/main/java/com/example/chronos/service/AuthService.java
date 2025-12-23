@@ -25,7 +25,6 @@ public class AuthService {
         // Encode the password before saving
         user.setPasswordHash(passwordEncoder.encode(user.getPassword()));
 
-        // ✅ Assign default role if not provided
         if (user.getRoles() == null || user.getRoles().isEmpty()) {
             user.setRoles("ROLE_USER"); // Default role for new users
         }

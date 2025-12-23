@@ -57,7 +57,7 @@ public interface JobLogRepository extends
     // Count logs by level for an instance
     long countByInstanceIdAndLogLevel(Long instanceId, LogLevel logLevel);
 
-    // Delete old logs (cleanup)
+    // Delete old logs
     void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
 
     // Find logs with details matching criteria

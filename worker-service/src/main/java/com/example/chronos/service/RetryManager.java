@@ -24,9 +24,8 @@ public class RetryManager {
     private final RabbitTemplate rabbitTemplate;
     private final TaskScheduler taskScheduler;
 
-    /**
-     * Determine if a failed job should be retried based on job.maxRetries
-     */
+    //  Determine if a failed job should be retried based on job.maxRetries
+
     public boolean shouldRetry(JobInstance instance, Job job) {
         int maxRetries = job.getMaxRetries();          // from Job entity
         int currentRetryCount = instance.getRetryCount() != null
@@ -41,9 +40,8 @@ public class RetryManager {
         return shouldRetry;
     }
 
-    /**
-     * Schedule a retry for a failed instance
-     */
+    // Schedule a retry for a failed instance
+
     @Transactional
     public void scheduleRetry(JobInstance failedInstance, Job job) {
         int nextRetryCount = (failedInstance.getRetryCount() != null
@@ -69,20 +67,17 @@ public class RetryManager {
         scheduleRetryMessage(retryInstance.getId(), delaySeconds);
     }
 
-    /**
-     * Calculate retry delay using exponential backoff based on job.backoffSeconds as base.
-     */
+    // Calculate retry delay using exponential backoff based on job.backoffSeconds as base.
+
     private long calculateRetryDelay(int retryAttempt, Job job) {
         long base = job.getBackoffSeconds() > 0 ? job.getBackoffSeconds() : 30L;
-        // exponential: base, 2*base, 4*base,...
         long delay = (long) (base * Math.pow(2, retryAttempt - 1));
         long maxDelay = 300L; // cap at 5 minutes
         return Math.min(delay, maxDelay);
     }
 
-    /**
-     * Schedule a delayed message to trigger retry
-     */
+    // Schedule a delayed message to trigger retry
+
     private void scheduleRetryMessage(Long instanceId, long delaySeconds) {
         Instant executionTime = Instant.now().plusSeconds(delaySeconds);
 
@@ -97,9 +92,8 @@ public class RetryManager {
         log.debug("Scheduled retry message for instance {} at {}", instanceId, executionTime);
     }
 
-    /**
-     * Send retry message to worker queue
-     */
+    //Send retry message to worker queue
+
     private void sendRetryMessage(Long instanceId) {
         Map<String, Object> message = new HashMap<>();
         message.put("instanceId", instanceId);
@@ -109,9 +103,8 @@ public class RetryManager {
         log.info("Sent retry message for instance {}", instanceId);
     }
 
-    /**
-     * Process retry instances that are ready to execute
-     */
+    //Process retry instances that are ready to execute
+
     @Transactional
     public void processReadyRetries() {
         var readyRetries = instanceRepository.findPendingInstancesReadyToRun(LocalDateTime.now());
@@ -127,9 +120,8 @@ public class RetryManager {
         }
     }
 
-    /**
-     * Get retry statistics for a job
-     */
+    //Get retry statistics for a job
+
     public Map<String, Object> getRetryStats(Long jobId) {
         Map<String, Object> stats = new HashMap<>();
 
@@ -153,9 +145,8 @@ public class RetryManager {
         return stats;
     }
 
-    /**
-     * Cancel pending retries for a job
-     */
+    // Cancel pending retries for a job
+
     @Transactional
     public int cancelPendingRetries(Long jobId) {
         var pendingRetries = instanceRepository.findByJobIdAndStatus(

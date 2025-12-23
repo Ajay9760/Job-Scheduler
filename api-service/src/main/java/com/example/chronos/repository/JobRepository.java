@@ -20,7 +20,7 @@ public interface JobRepository extends JpaRepository<Job, Long> {
     // Find jobs by status with pagination
     Page<Job> findByStatus(JobStatus status, Pageable pageable);
 
-    // Find jobs by createdBy (owner - YOUR EXISTING FIELD NAME)
+    // Find jobs by createdBy
     List<Job> findByCreatedBy(String createdBy);
 
     // Find job by ID and createdBy (for authorization - YOUR EXISTING FIELD NAME)

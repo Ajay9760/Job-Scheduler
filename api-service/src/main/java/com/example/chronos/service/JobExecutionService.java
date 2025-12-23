@@ -22,9 +22,6 @@ public class JobExecutionService {
     private final JobRepository jobRepository;
     private final JobInstanceRepository instanceRepository;
 
-    /**
-     * Trigger manual execution of a job
-     */
     @Transactional
     public JobInstanceDTO triggerManualExecution(Long jobId) {
         log.info("🔥 Triggering manual execution for job ID: {}", jobId);
@@ -32,8 +29,7 @@ public class JobExecutionService {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
 
-        // ✅ FIX: Allow SCHEDULED jobs to be triggered
-        if (job.getStatus() != JobStatus.SCHEDULED && job.getStatus() != JobStatus.ACTIVE) {
+        if (job.getStatus() != JobStatus.SCHEDULED ) {
             throw new IllegalStateException("Cannot trigger inactive job: " + job.getName());
         }
 
@@ -53,9 +49,6 @@ public class JobExecutionService {
         return mapToDTO(instance);
     }
 
-    /**
-     * Resume a paused job
-     */
     @Transactional
     public void resumeJob(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -70,15 +63,11 @@ public class JobExecutionService {
         log.info("Resumed job: {} (ID: {})", job.getName(), jobId);
     }
 
-    /**
-     * Stop a running instance
-     */
     @Transactional
     public void stopInstance(Long instanceId) {
         JobInstance instance = instanceRepository.findById(instanceId)
                 .orElseThrow(() -> new IllegalArgumentException("Instance not found: " + instanceId));
 
-        // ✅ FIX: Check if actually running
         if (instance.getStatus() != JobInstance.InstanceStatus.RUNNING) {
             throw new IllegalStateException("Instance is not running");
         }
@@ -88,9 +77,6 @@ public class JobExecutionService {
         log.info("Stopped instance ID: {}", instanceId);
     }
 
-    /**
-     * Retry a failed instance
-     */
     @Transactional
     public JobInstanceDTO retryFailedInstance(Long instanceId) {
         JobInstance failedInstance = instanceRepository.findById(instanceId)
@@ -114,10 +100,7 @@ public class JobExecutionService {
 
         return mapToDTO(retryInstance);
     }
-
-    /**
-     * Enable a job
-     */
+    // Enable job
     @Transactional
     public void enableJob(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -128,9 +111,7 @@ public class JobExecutionService {
         log.info("Enabled job: {} (ID: {})", job.getName(), jobId);
     }
 
-    /**
-     * Disable a job
-     */
+    //Disable job
     @Transactional
     public void disableJob(Long jobId) {
         Job job = jobRepository.findById(jobId)
@@ -141,10 +122,7 @@ public class JobExecutionService {
         log.info("Disabled job: {} (ID: {})", job.getName(), jobId);
     }
 
-    /**
-     * Bulk trigger jobs
-     * ✅ FIX: Only trigger valid jobs and return accurate count
-     */
+    //Bulk trigger jobs
     @Transactional
     public int bulkTrigger(List<Long> jobIds) {
         if (jobIds == null || jobIds.isEmpty()) {
@@ -164,8 +142,7 @@ public class JobExecutionService {
                     continue;
                 }
 
-                // ✅ FIX: Only trigger SCHEDULED/ACTIVE jobs
-                if (job.getStatus() != JobStatus.SCHEDULED && job.getStatus() != JobStatus.ACTIVE) {
+                if (job.getStatus() != JobStatus.SCHEDULED) {
                     log.warn("Cannot trigger inactive job: {} (status: {})",
                             job.getName(), job.getStatus());
                     continue;
@@ -192,9 +169,7 @@ public class JobExecutionService {
         return successCount;
     }
 
-    /**
-     * Map JobInstance to DTO
-     */
+    //Map JobInstance to DTO
     private JobInstanceDTO mapToDTO(JobInstance instance) {
         JobInstanceDTO dto = JobInstanceDTO.builder()
                 .id(instance.getId())

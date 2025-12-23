@@ -959,7 +959,7 @@ Authorization: Bearer <token>
     "id": 101,
     "jobId": 1,
     "status": "SUCCESS",
-    "startTime": "2
+    "startTime": 2
     
     
     

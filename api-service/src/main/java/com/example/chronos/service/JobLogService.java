@@ -25,9 +25,7 @@ public class JobLogService {
 
     private final JobLogRepository logRepository;
 
-    /**
-     * Find logs by instance ID
-     */
+    // Find logs by instance ID
     @Transactional(readOnly = true)
     public List<JobLogDTO> findByInstanceId(Long instanceId, JobLog.LogLevel level) {
         List<JobLog> logs = level != null
@@ -39,9 +37,8 @@ public class JobLogService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Find logs by job ID
-     */
+    // Finds logs by job ID
+
     @Transactional(readOnly = true)
     public PageResponse<JobLogDTO> findByJobId(Long jobId, JobLog.LogLevel level, Pageable pageable) {
         Page<JobLog> page = level != null
@@ -62,9 +59,8 @@ public class JobLogService {
         return logRepository.findByJob_Id(jobId, pageable);
     }
 
-    /**
-     * Find error logs
-     */
+    // Finds error logs
+
     @Transactional(readOnly = true)
     public PageResponse<JobLogDTO> findErrorLogs(Long jobId, Pageable pageable) {
         Page<JobLog> page = jobId != null
@@ -74,9 +70,8 @@ public class JobLogService {
         return mapToPageResponse(page);
     }
 
-    /**
-     * Search logs by message
-     */
+    // Search logs by message
+
     @Transactional(readOnly = true)
     public List<JobLogDTO> searchLogs(Long instanceId, String query) {
         List<JobLog> logs = logRepository.searchLogsByMessage(instanceId, query);
@@ -93,9 +88,8 @@ public class JobLogService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get log statistics by job ID
-     */
+    //Get log statistics by job ID
+
     @Transactional(readOnly = true)
     public Map<String, Long> getStatisticsByJobId(Long jobId) {
         List<Object[]> results = logRepository.getLogStatisticsByJobId(jobId);
@@ -106,8 +100,6 @@ public class JobLogService {
             Long count = (Long) result[1];
             stats.put(level.name(), count);
         }
-
-        // Ensure all levels are present
         for (JobLog.LogLevel level : JobLog.LogLevel.values()) {
             stats.putIfAbsent(level.name(), 0L);
         }
@@ -115,18 +107,15 @@ public class JobLogService {
         return stats;
     }
 
-    /**
-     * Find recent logs
-     */
+    //Find recent logs
     @Transactional(readOnly = true)
     public PageResponse<JobLogDTO> findRecent(Pageable pageable) {
         Page<JobLog> page = logRepository.findAll(pageable);
         return mapToPageResponse(page);
     }
 
-    /**
-     * Export logs as text
-     */
+    //Export logs as text
+
     @Transactional(readOnly = true)
     public String exportLogsAsText(Long instanceId) {
         List<JobLog> logs = logRepository.findByInstanceIdOrderByCreatedAtAsc(instanceId);
@@ -154,9 +143,8 @@ public class JobLogService {
         return sb.toString();
     }
 
-    /**
-     * Cleanup old logs
-     */
+    // Cleanup old logs
+
     @Transactional
     public int cleanupOldLogs(int olderThanDays) {
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(olderThanDays);
@@ -172,9 +160,8 @@ public class JobLogService {
         return count;
     }
 
-    /**
-     * Find log by ID
-     */
+    // Find log by ID
+
     @Transactional(readOnly = true)
     public JobLogDTO findById(Long id) {
         JobLog log = logRepository.findById(id)
@@ -182,9 +169,8 @@ public class JobLogService {
         return mapToDTO(log);
     }
 
-    /**
-     * Map entity to DTO
-     */
+    // Map entity to DTO
+
     private JobLogDTO mapToDTO(JobLog log) {
         JobLogDTO dto = JobLogDTO.builder()
                 .id(log.getId())
@@ -200,9 +186,8 @@ public class JobLogService {
         return dto;
     }
 
-    /**
-     * Map page to page response
-     */
+    // Map page to page response
+
     private PageResponse<JobLogDTO> mapToPageResponse(Page<JobLog> page) {
         List<JobLogDTO> dtos = page.getContent().stream()
                 .map(this::mapToDTO)

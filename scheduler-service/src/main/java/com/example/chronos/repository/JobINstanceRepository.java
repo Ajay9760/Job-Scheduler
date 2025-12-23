@@ -65,7 +65,7 @@ public interface JobINstanceRepository extends
        """)
     List<JobInstance> findFailedInstancesForRetry(@Param("maxRetries") int maxRetries);
 
-    // Delete old instances (cleanup)
+    // Delete old instances
     void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
 
     // Find recent instances

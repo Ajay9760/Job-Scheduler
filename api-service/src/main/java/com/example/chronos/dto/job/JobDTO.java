@@ -50,7 +50,7 @@ public class JobDTO {
 
     private String webhookUrl;
 
-    // Statistics fields (read-only, populated from Job entity)
+    // Statistics fields
     private Integer totalRuns;
     private Integer successfulRuns;
     private Integer failedRuns;
