@@ -29,7 +29,7 @@ public class JobExecutionService {
         Job job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
 
-        if (job.getStatus() != JobStatus.SCHEDULED && job.getStatus() != JobStatus.ACTIVE) {
+        if (job.getStatus() != JobStatus.SCHEDULED ) {
             throw new IllegalStateException("Cannot trigger inactive job: " + job.getName());
         }
 
@@ -142,7 +142,7 @@ public class JobExecutionService {
                     continue;
                 }
 
-                if (job.getStatus() != JobStatus.SCHEDULED && job.getStatus() != JobStatus.ACTIVE) {
+                if (job.getStatus() != JobStatus.SCHEDULED) {
                     log.warn("Cannot trigger inactive job: {} (status: {})",
                             job.getName(), job.getStatus());
                     continue;

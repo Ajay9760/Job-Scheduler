@@ -15,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-import java.time.LocalDateTime;
-
 
 @Service
 @RequiredArgsConstructor
@@ -180,13 +178,14 @@ public class JobExecutor {
     }
 
     // Update job statistics after execution.
+    // Note: updatedAt is automatically set by @PreUpdate in Job entity
 
     @Transactional
     public void updateJobStatistics(Job job, boolean success, Long durationMs, String errorMessage) {
         if (!success) {
             job.setLastError(errorMessage);
         }
-        job.setUpdatedAt(LocalDateTime.from(java.time.Instant.now()));
+        // updatedAt is automatically set by JPA @PreUpdate
         jobRepository.save(job);
     }
 

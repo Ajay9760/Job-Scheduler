@@ -48,7 +48,7 @@ public class Job {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     @Builder.Default
-    private JobStatus status = JobStatus.ACTIVE;
+    private JobStatus status = JobStatus.SCHEDULED;
 
     @Column(nullable = false)
     @Builder.Default
@@ -109,12 +109,11 @@ public class Job {
     private Integer consecutiveFailures = 0;
 
     @PrePersist
-    protected void onCreate() {
+    public void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (status == null) {
-            status = JobStatus.ACTIVE;
-        }
+          status = JobStatus.SCHEDULED;        }
         if (externalId == null) {
             externalId = java.util.UUID.randomUUID().toString();
         }

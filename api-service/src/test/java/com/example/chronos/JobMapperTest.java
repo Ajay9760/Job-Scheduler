@@ -2,6 +2,7 @@ package com.example.chronos;
 
 import com.example.chronos.domain.Job;
 import com.example.chronos.domain.enums.HttpMethodType;
+import com.example.chronos.domain.enums.JobStatus;
 import com.example.chronos.dto.job.JobCreateRequest;
 import com.example.chronos.dto.job.JobResponse;
 import com.example.chronos.service.JobMapper;
@@ -34,19 +35,33 @@ class JobMapperTest {
         assertThat(job.getCreatedBy()).isEqualTo("ajay");
         assertThat(job.getCronExpression()).isEqualTo("0 * * * *");
         assertThat(job.getPriority()).isEqualTo(5);
+        assertThat(job.getStatus()).isEqualTo(JobStatus.SCHEDULED);
     }
 
     @Test
     void toResponse_mapsEntityCorrectly() {
-        Job job = new Job();
-        job.setId(1L);
-        job.setName("Test Job");
-        job.setTargetUrl("https://example.com");
-        job.setHttpMethod(HttpMethodType.GET);
+        // Use the entity's builder to ensure @PrePersist is called
+        Job job = Job.builder()
+                .id(1L)
+                .name("Test Job")
+                .targetUrl("https://example.com")
+                .httpMethod(HttpMethodType.GET)
+                .status(JobStatus.SCHEDULED)
+                .priority(5)
+                .timeoutSeconds(30)
+                .maxRetries(3)
+                .cronExpression("0 * * * *")
+                .build();
+
+        // Manually trigger @PrePersist behavior since we're not using JPA
+        job.onCreate();
 
         JobResponse response = mapper.toResponse(job);
 
         assertThat(response.getId()).isEqualTo(1L);
         assertThat(response.getName()).isEqualTo("Test Job");
+        assertThat(response.getTargetUrl()).isEqualTo("https://example.com");
+        assertThat(response.getCreatedAt()).isNotNull();
+        assertThat(response.getUpdatedAt()).isNotNull();
     }
 }
