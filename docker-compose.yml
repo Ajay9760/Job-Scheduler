@@ -1,0 +1,58 @@
+# docker compose up --build        (copy .env.example to .env first)
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: chronos
+      POSTGRES_USER: chronos
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronos -d chronos"]
+      interval: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: chronos
+      RABBITMQ_DEFAULT_PASS: ${RABBIT_PASSWORD:?set RABBIT_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      retries: 10
+
+  api:
+    build: { context: ., dockerfile: api-service/Dockerfile }
+    depends_on: { postgres: { condition: service_healthy } }
+    environment: &common
+      DB_URL: jdbc:postgresql://postgres:5432/chronos
+      DB_USERNAME: chronos
+      DB_PASSWORD: ${DB_PASSWORD}
+      RABBIT_HOST: rabbitmq
+      RABBIT_USERNAME: chronos
+      RABBIT_PASSWORD: ${RABBIT_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET (32+ chars) in .env}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      ALLOW_PRIVATE_TARGETS: ${ALLOW_PRIVATE_TARGETS:-false}
+    ports: ["8080:8080"]
+
+  scheduler:
+    build: { context: ., dockerfile: scheduler-service/Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    environment: *common
+    # scale with: docker compose up --scale scheduler=2   (SKIP LOCKED makes replicas safe)
+
+  worker:
+    build: { context: ., dockerfile: worker-service/Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+    environment: *common
+    deploy: { replicas: 2 }
+
+volumes:
+  pgdata:

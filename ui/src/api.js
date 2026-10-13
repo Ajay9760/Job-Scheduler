@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080/api";
 
 // Auth APIs
 export async function login(username, password) {
@@ -14,11 +14,11 @@ export async function login(username, password) {
   return res.json();
 }
 
-export async function register(username, password, roles = "USER") {
+export async function register(username, password) {
   const res = await fetch(`${API_BASE}/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password, roles })
+    body: JSON.stringify({ username, password })
   });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: "Registration failed" }));

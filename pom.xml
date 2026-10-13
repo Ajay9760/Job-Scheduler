@@ -12,6 +12,8 @@
   <name>Chronos Job Scheduler</name>
 
   <modules>
+    <!-- chronos-common must come first: every service depends on it -->
+    <module>chronos-common</module>
     <module>api-service</module>
     <module>scheduler-service</module>
     <module>worker-service</module>
@@ -19,25 +21,23 @@
 
   <properties>
     <java.version>21</java.version>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+
     <spring.boot.version>3.3.4</spring.boot.version>
     <testcontainers.version>1.20.3</testcontainers.version>
-        <java.version>21</java.version> <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    </properties>
+    <jjwt.version>0.12.5</jjwt.version>
+    <springdoc.version>2.6.0</springdoc.version>
+  </properties>
 
-    <repositories>
-        <repository>
-            <id>central</id>
-            <url>https://repo.maven.apache.org/maven2</url>
-        </repository>
-        <repository>
-            <id>jitpack.io</id>
-            <url>https://jitpack.io</url>
-        </repository>
-    </repositories>
+  <!--
+    The jitpack.io repository that used to be declared here was removed on purpose:
+    nothing in this project needs it, and every extra repository is an additional
+    supply-chain risk. Maven Central is the default.
+  -->
 
-
-    <dependencyManagement>
+  <dependencyManagement>
     <dependencies>
       <dependency>
         <groupId>org.springframework.boot</groupId>
@@ -53,6 +53,31 @@
         <type>pom</type>
         <scope>import</scope>
       </dependency>
+      <dependency>
+        <groupId>com.example</groupId>
+        <artifactId>chronos-common</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-api</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-impl</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.jsonwebtoken</groupId>
+        <artifactId>jjwt-jackson</artifactId>
+        <version>${jjwt.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.springdoc</groupId>
+        <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+        <version>${springdoc.version}</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -67,10 +92,10 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
           <configuration>
-            <source>${java.version}</source>
-            <target>${java.version}</target>
             <release>${java.version}</release>
+            <parameters>true</parameters>
           </configuration>
         </plugin>
       </plugins>

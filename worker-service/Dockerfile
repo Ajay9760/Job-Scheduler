@@ -1,29 +1,21 @@
-# ---------- Build stage ----------
-FROM maven:3.9.9-eclipse-temurin-21 AS build
-WORKDIR /build
-
-# Copy parent POM
+# Build context is the REPOSITORY ROOT (see docker-compose.yml): the module needs chronos-common.
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /src
 COPY pom.xml .
+COPY chronos-common/pom.xml chronos-common/
+COPY api-service/pom.xml api-service/
+COPY scheduler-service/pom.xml scheduler-service/
+COPY worker-service/pom.xml worker-service/
+RUN mvn -q -B -pl worker-service -am dependency:go-offline || true
+COPY chronos-common chronos-common
+COPY worker-service worker-service
+RUN mvn -q -B -pl worker-service -am -DskipTests package
 
-# Copy module POMs
-COPY api-service/pom.xml api-service/pom.xml
-COPY scheduler-service/pom.xml scheduler-service/pom.xml
-COPY worker-service/pom.xml worker-service/pom.xml
-
-# Download dependencies
-RUN mvn -B -pl worker-service -am dependency:go-offline
-
-# Copy source code
-COPY worker-service/src worker-service/src
-COPY api-service/src api-service/src
-
-# Build worker-service
-RUN mvn -B -pl worker-service -am clean package -DskipTests
-
-# ---------- Runtime stage ----------
 FROM eclipse-temurin:21-jre
+RUN useradd --system --uid 10001 chronos
 WORKDIR /app
-
-COPY --from=build /build/worker-service/target/*-exec.jar app.jar
-
-ENTRYPOINT ["java","-jar","app.jar"]
+COPY --from=build /src/worker-service/target/worker-service-*-SNAPSHOT.jar app.jar
+USER chronos
+EXPOSE 8082
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75"
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -5,3 +5,12 @@
 *.iml
 .idea/
 .vscode/
+
+# Secrets and local config
+.env
+*.log
+logs.txt
+app.jar
+ui/node_modules/
+ui/dist/
+/package-lock.json
