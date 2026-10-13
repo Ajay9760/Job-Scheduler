@@ -1,0 +1,28 @@
+# Load-test overlay.  Usage (from repo root):
+#   docker compose -f docker-compose.yml -f docker-compose.bench.yml up -d --build \
+#       --scale scheduler=2 --scale worker=4
+# Adds a local HTTP target (nginx), allows private targets, exposes ports and a Prometheus on :9090.
+services:
+  target:
+    image: nginx:alpine           # always answers 200 instantly: measures Chronos, not the target
+  postgres:
+    ports: ["5432:5432"]
+    command: ["postgres", "-c", "max_connections=300"]
+  rabbitmq:
+    ports: ["15672:15672"]
+  api:
+    environment: { ALLOW_PRIVATE_TARGETS: "true" }
+  scheduler:
+    environment: { ALLOW_PRIVATE_TARGETS: "true", DB_POOL_SIZE: "10" }
+  worker:
+    deploy: { replicas: 1 }       # use --scale worker=N
+    environment:
+      ALLOW_PRIVATE_TARGETS: "true"
+      WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-8}
+      WORKER_MAX_CONCURRENCY: ${WORKER_CONCURRENCY:-8}
+      WORKER_PREFETCH: ${WORKER_PREFETCH:-20}
+      DB_POOL_SIZE: "20"
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    volumes: ["./bench/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    ports: ["9090:9090"]

@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Build context is the REPOSITORY ROOT (see docker-compose.yml): the module needs chronos-common.
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /src
@@ -6,10 +7,9 @@ COPY chronos-common/pom.xml chronos-common/
 COPY api-service/pom.xml api-service/
 COPY scheduler-service/pom.xml scheduler-service/
 COPY worker-service/pom.xml worker-service/
-RUN mvn -q -B -pl scheduler-service -am dependency:go-offline || true
 COPY chronos-common chronos-common
 COPY scheduler-service scheduler-service
-RUN mvn -q -B -pl scheduler-service -am -DskipTests package
+RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -pl scheduler-service -am -DskipTests package
 
 FROM eclipse-temurin:21-jre
 RUN useradd --system --uid 10001 chronos

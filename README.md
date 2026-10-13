@@ -69,3 +69,10 @@ Job schedule: `scheduleType` = `CRON` (5 or 6 fields), `INTERVAL` (`30s`, `5m`, 
 * DNS-rebinding between the SSRF check and the HTTP call is only narrowed, not eliminated (would need a pinned-IP connector).
 * Circuit-breaker state is per worker process.
 * Single RabbitMQ node and single Postgres; no HA setup included.
+
+
+## Testing and load testing
+
+- `mvn clean verify` runs unit tests plus Testcontainers integration tests (need Docker) that prove exactly-once claiming,
+  `SKIP LOCKED` batch isolation, no lost counter updates under concurrency, and durable retry/backoff.
+- Throughput/latency benchmark and k6 API load test: see [docs/SCALING.md](docs/SCALING.md) (`bench/`).

@@ -1,0 +1,5 @@
+global: { scrape_interval: 5s }
+scrape_configs:
+  - { job_name: api,       metrics_path: /actuator/prometheus, static_configs: [{ targets: ["api:8080"] }] }
+  - { job_name: scheduler, metrics_path: /actuator/prometheus, dns_sd_configs: [{ names: ["scheduler"], type: A, port: 8081 }] }
+  - { job_name: worker,    metrics_path: /actuator/prometheus, dns_sd_configs: [{ names: ["worker"],    type: A, port: 8082 }] }
