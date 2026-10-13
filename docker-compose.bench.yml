@@ -26,3 +26,12 @@ services:
     image: prom/prometheus:v2.54.1
     volumes: ["./bench/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
     ports: ["9090:9090"]
+  grafana:
+    image: grafana/grafana:11.2.0
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+    volumes: ["./bench/grafana/datasources.yml:/etc/grafana/provisioning/datasources/ds.yml:ro"]
+    ports: ["3000:3000"]
+    depends_on: [prometheus, postgres]

@@ -56,3 +56,21 @@ Record results here (machine: CPU/RAM/Docker limits, date, commit):
 
 Only quote numbers you measured, with the hardware and setup next to them. A laptop result with an
 instant nginx target says "the framework overhead is X", not "it handles X jobs/s in production".
+
+## Watching a run in Grafana
+
+With the bench overlay up, open http://localhost:3000 (no login). Two data sources are pre-provisioned:
+**Prometheus** (JVM/HTTP/Hikari/Rabbit metrics) and **Chronos-DB** (PostgreSQL, for the job metrics).
+Create a dashboard (New -> Dashboard -> Add visualization) with these panels:
+
+| Panel | Data source | Query |
+|---|---|---|
+| Throughput (runs/s) | Chronos-DB (time series) | `SELECT date_trunc('second', completed_at) AS time, count(*) AS runs FROM job_instances WHERE completed_at > now() - interval '15 minutes' GROUP BY 1 ORDER BY 1` |
+| Backlog by status | Chronos-DB (time series, refresh 5s) | `SELECT now() AS time, status AS metric, count(*) AS value FROM job_instances WHERE status IN ('PENDING','QUEUED','RUNNING') GROUP BY status` |
+| Queue wait p95 (ms) | Chronos-DB | `SELECT date_trunc('second', started_at) AS time, percentile_cont(0.95) WITHIN GROUP (ORDER BY extract(epoch FROM started_at - scheduled_time)*1000) AS p95 FROM job_instances WHERE started_at > now() - interval '15 minutes' GROUP BY 1 ORDER BY 1` |
+| API request rate | Prometheus | `sum(rate(http_server_requests_seconds_count[30s]))` |
+| API p95 latency | Prometheus | `histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket[1m])))` (add `management.metrics.distribution.percentiles-histogram.http.server.requests=true` to the API config) |
+| DB pool pressure | Prometheus | `hikaricp_connections_active` and `hikaricp_connections_pending` by `job` |
+| CPU per service | Prometheus | `process_cpu_usage` by `job` |
+
+Take a screenshot of the throughput + backlog panels during a run: that is a good README/portfolio image.
