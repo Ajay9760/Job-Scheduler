@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+  - { name: Prometheus, type: prometheus, uid: prom, access: proxy, url: http://prometheus:9090, isDefault: true }
+  - name: Chronos-DB
+    type: postgres
+    uid: pg
+    access: proxy
+    url: postgres:5432
+    user: chronos
+    secureJsonData: { password: "$DB_PASSWORD" }
+    jsonData: { database: chronos, sslmode: disable, postgresVersion: 1600 }
